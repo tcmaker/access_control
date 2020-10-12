@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Activity{% endblock %}
+{% block titlecontent %}
+<div class="w-100">
+        <div class="float-left"><h1 class="h2">Activity</h1></div>
+    <div class="float-right">
+<nav aria-label="Page navigation example">
+  <ul class="pagination">
+    <li class="page-item" >
+      <a class="page-link" href="{{ url_for("activity")}}" aria-label="Previous">Beginning </a>
+    </li>
+      <li class="page-item {% if page == 1 %}disabled{% endif %}" >
+      <a class="page-link" href="{{ url_for('activity', page=page-1) }}" aria-label="Previous">Previous </a>
+    </li>
+    {% for pn in pagerange %}
+    <li class="page-item {% if page == pn %}active{% endif %}"><a class="page-link " href="{{url_for('activity',page=pn)}}">{{ pn }}</a></li>
+    {% endfor %}
+    <li class="page-item {% if page == pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('activity', page=page+1) }}" aria-label="Next">Next</a>
+    </li>
+  <li class="page-item ml-3">
+          <a class="page-link" href="{{ url_for('export') }}"><span data-feather="download-cloud"></span><span>Download All</span></a>
+  </li>
+  </ul>
+
+</nav>
+
+    </div>
+    </div>
+
+{% endblock %}
+{% block content %}
+
+<table class="table table-striped table-hover table-sm">
+<thead>
+<tr>
+    <th>Time</th>
+    <th>Facilitiy</th>
+    <th>MemberId</th>
+    <th>Authcode</th>
+    <th>Result</th>
+</tr>
+</thead>
+<tbody>
+    {% for a in activity %}
+    <tr>
+    <td>{{ a.timestamp.strftime("%c") }}</td>
+    <td>{{ a.facility }}</td>
+    <td>{{ a.memberid }}</td>
+        <td>{{ a.credentialref }}</td>
+    <td>{{ a.result }}</td>
+    </tr>
+{% endfor %}
+</tbody>
+
+</table>
+{% endblock %}

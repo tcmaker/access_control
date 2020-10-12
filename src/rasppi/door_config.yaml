@@ -1,0 +1,36 @@
+system:
+  logfile: tcdoor4.log #blah
+  database: dooraccess.db
+
+webpanel:
+  secretkey: 234lsdf83ojklhsdfo8312lhjk
+  username: tcmaker
+  password: hackfactory
+
+aws:
+  key_id: AKIAWOQNK3MENBZWXYXM
+  access_key: PntJCUzr5FUqy5G+8T8v6ANabRothGKO0sRyq2NS
+  region: us-east-1
+  incoming: https://sqs.us-east-1.amazonaws.com/443483347720/incoming.fifo
+  outgoing: https://sqs.us-east-1.amazonaws.com/443483347720/basictest.fifo
+
+scanners:
+  frontscanner:
+    board: &accxboard "ftdi://ftdi:232:AM01QC8Q/1"
+    scanner: 1
+
+  rearscanner:
+    board: *accxboard
+    scanner: 2
+
+facilities:
+  frontdoor:
+    board: *accxboard
+    scanner: frontscanner
+    relay: 1
+
+  laser:
+    board: *accxboard
+    scanner: rearscanner
+    relay: 2
+

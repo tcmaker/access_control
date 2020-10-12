@@ -1,0 +1,36 @@
+
+{% if devices|length > 0 %}
+    <h3 class="text-success">Found {{ devices|length }} device{% if devices|length > 1%}s{% endif %}:</h3>
+{% else %}
+    <h3 class="text-warning">Found no devices!</h3>
+{% endif %}
+
+{% if devices|length > 0 %}
+
+<div class="container-fluid p-0">
+
+{% for d in devices %}
+<div class="row">
+<div class="col-md-auto"><p class="h6 align-middle">{{ d }}</p></div>
+    <div class="col">
+        <form class="form-inline" action="{{ url_for('add_hardware')}}" method="post">
+            <div class="form-row">
+                <div class="col">
+                    <input type="hidden" name="device" id="device" value="{{ d }}" />
+                    <input type="text" name="friendly" class="form-control" id="friendly" placeholder="Friendly Name" ></div>
+            <div class="col-md-auto">
+            <button type="submit" class="btn btn-info">Add this device</button>
+            </div>
+
+                </div>
+        </form>
+
+    <div class="col-md-auto">
+
+    </div>
+<div>
+{% endfor %}
+
+</div>
+
+{% endif %}

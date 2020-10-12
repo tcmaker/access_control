@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Log{% endblock %}
+{% block titlecontent %}<h1 class="h3">Last {{ logsize }} lines</h1>{% endblock %}
+{% block content %}
+<table class="table-sm table">
+{% for line in logcontents %}
+<tr>
+    <td><span class="text-monospace {{ line|is_error }} {{ line|is_fatal }} {{ line|is_warning }} {{ line|is_info }} {{ line|is_debug }}">{{ line }}</span></td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}

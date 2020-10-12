@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Facilities{% endblock %}
+{% block content %}
+    <div class="container-fluid">
+
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script type="text/javascript">
+        $("#friendlyNameNew").on('input',function (e)
+        {
+            if(!($("#friendlyNameNew").val().trim() === ""))
+            {
+                $("#newButton").removeClass("btn-block").addClass("btn-success");
+            }
+            else
+            {
+                $("#newButton").removeClass("btn-success").addClass("btn-block");
+            }
+        })
+
+    </script>
+
+{% endblock %}

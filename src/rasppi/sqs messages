@@ -1,0 +1,76 @@
+Existing Message:
+
+{
+  "action": "activate",
+  "code": "4791371",
+  "member": 3870,
+  "access_level": 3
+}
+
+New:
+{
+    "action" : "activate",
+    "code" : "codenumber", //string, not integer
+    "facility" : "frontdoor",
+    "codetype" : "fob", //fob or passcode
+    "member": "3870", //string or int
+    "priority":  3,  //integer
+    "tag":  "GUID",
+    "effective" : "ISO8601 UTC Time",
+    "expiration" : "ISO8601 UTC Time",
+}
+
+Revoke:
+{
+    "action": "revoke",
+    "facility" : "facilityname"
+    "tag" : "GUID",
+}
+
+Modify:
+{
+    "action": "modify",
+    "member" : memberId,
+    "oldcode": "numbers",
+    "oldtype": "fob",
+    "newtype" : "fob",
+    "newcode" : "newnumbers",
+    "facility" : "name"
+}
+
+Set Requirement:
+{
+    "action": "set-requirement",
+    "requiredpriority" : 1,  //integer
+    "facility" : "frontdoor",
+    "tag" : "GUID",
+    "description" : "desc", //optional, for convenience
+    "timespec" : "SEE BELOW"
+}
+
+For time spec, the following values:
+ * "always"
+ * A full icalendar definition. The system will parse the icalendar event information for repeating
+   events, e.g. open house.
+
+
+Revoke Requirement:
+{
+    "action": "revoke-requirement",
+    "facility" : "facilityname"
+    "tag" : GUID,
+}
+
+Outgoing:
+
+Activity:
+{
+    "action" : "activity",
+    "result" : "granted", // one of "granted", "denied", "exit"
+    "facility" : "frontdoor",
+    "memberid" : "", //Will be a string, "unknown" for unknown credentials
+    "authorization" : "GUID", //optional
+    "timestamp" : "ISO8601 timestamp"
+}
+
+
