@@ -60,8 +60,11 @@ class AuthorizationService():
 
             if type(r) == tuple:
                 if r[0] == 'unlock':
-                    (c,board,relay,duration) = r
-                    self.boards[board].Unlock(relay, duration)
+                    (c,board,relay,duration,credential) = r
+                    self.boards[board].Unlock(relay, duration,credential)
+                elif r[0] == "lock":
+                    (a, board, relay, credential) = r
+                    self.boards[board].Lock(relay,credential)
                 elif r[0] == 'aws':
                     self.DoAwsUploadDownload()
                 elif r[0] == "status":
@@ -76,9 +79,6 @@ class AuthorizationService():
                     for bn,bv in self.boards.items():
                         response.append(f"{bn} - {bv.model} v{bv.version}: {bv.numScanners} scanners, {bv.numRelays} relays")
                     self._outqueue.put(response)
-                elif r[0] == "lock":
-                    (a, board,relay) = r
-                    self.boards[board].Lock(relay)
                 elif r[0] == "reload":
                     # We have to do this here, even though it's also done in the webpanel, because
                     # Config is different here vs webpanel due to multiprocessing
@@ -86,8 +86,11 @@ class AuthorizationService():
                     self.reloadBoards()
                     self._outqueue.put("OK")
 
-    def unlock(self, board, relay, duration):
-        self._inqueue.put(('unlock',board,relay,duration))
+    def lock(self, board, relay, credential):
+        self._inqueue.put(('lock',board,relay,credential))
+
+    def unlock(self, board, relay, duration, credential):
+        self._inqueue.put(('unlock',board,relay,duration,credential))
 
     def trigger_notify(self):
         self._inqueue.put(('aws',))
@@ -111,7 +114,7 @@ class AuthorizationService():
             if firstChar == 'F' or firstChar == 'P': #keyfob
                 (code, scannerIndex) = body.split(',')
                 scannerIndex = int(scannerIndex)
-                inputValue = f"{'fob' if firstChar == 'F' else 'passcode'}:{code}"
+                credential_value = f"{'fob' if firstChar == 'F' else 'passcode'}:{code}"
                 (facility,scanner) = self.findFacility(deviceId, scannerIndex)
                 if facility is not None:
                     # OK, we've determined the facility that was scanned for
@@ -125,8 +128,9 @@ class AuthorizationService():
                                                 result="exit",
                                                 timestamp=datetime.now(),
                                                 facility=facility.name,
-                                                credentialref=inputValue,
+                                                credentialref=credential_value,
                                                 notified=False)
+                            self.lock(facility.board, facility.relay, credential_value)
                             db.add(activity)
                             db.commit()
                             return
@@ -144,14 +148,14 @@ class AuthorizationService():
                             activity = Activity(memberid=credential.memberid, authorization=credential.tag,
                                                 result="granted" if grant else "denied",
                                                 timestamp=datetime.now(),
-                                                credentialref=inputValue,
+                                                credentialref=credential_value,
                                                 facility=facility.name,
                                                 notified=False)
                             db.add(activity)
                             db.commit()
                             # activate hardware
                             if grant:
-                                self.unlock(facility.board, facility.relay, facility.unlockduration)
+                                self.unlock(facility.board, facility.relay, facility.unlockduration,credential_value)
                             return
                     else: #scan of a non-existent user
                         if(scanner == facility.outscanner):
@@ -159,14 +163,14 @@ class AuthorizationService():
                         activity = Activity(memberid="unknown", authorization="none",
                                             result="exit" if scanner == facility.outscanner else "denied",
                                             timestamp=datetime.now(),
-                                            credentialref=inputValue,
+                                            credentialref=credential_value,
                                             facility=facility.name,
                                             notified=False)
                         db.add(activity)
                         db.commit()
                         return
                 #unknown scanner/facility
-                activity = Activity(memberid="",authorization="",credentialref=inputValue,result="denied",timestamp=datetime.now(),facility =facility.name if facility is not None else None,notified=False)
+                activity = Activity(memberid="",authorization="",credentialref=credential_value,result="denied",timestamp=datetime.now(),facility =facility.name if facility is not None else None,notified=False)
                 db.add(activity)
                 db.commit()
         finally:

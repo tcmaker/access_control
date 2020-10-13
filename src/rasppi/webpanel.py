@@ -258,7 +258,7 @@ def lock():
         board = request.form['board']
         relay = int(request.form['index'])
         q: Queue = webpanel.config['squeue']
-        q.put(("lock",board,relay))
+        q.put(("lock",board,relay,None))
         sleep(0.5) #less than ideal
         return redirect("/diagnostics")
     except:
@@ -274,7 +274,7 @@ def unlock():
         relay = int(request.form['index'])
         duration = int(float(request.form['duration']))
         q: Queue = webpanel.config['squeue']
-        q.put(("unlock",board,relay,duration))
+        q.put(("unlock",board,relay,duration,None))
         sleep(0.5)  # less than ideal
         return redirect("/diagnostics")
     except:
