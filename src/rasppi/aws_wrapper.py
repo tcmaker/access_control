@@ -8,17 +8,20 @@ from uuid import uuid4
 logger = logging.getLogger("aws")
 
 AwsConfig = Config.RawConfig['aws']
-#logging.getLogger('botocore.hooks').setLevel(logging.ERROR)
-#logging.getLogger('botocore.auth').setLevel(logging.ERROR)
-#logging.getLogger('botocore.client').setLevel(logging.ERROR)
-#logging.getLogger('botocore.endpoint').setLevel(logging.ERROR)
 logging.getLogger('botocore').setLevel(logging.ERROR)
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 
+def getClient(awsconfig=AwsConfig):
+    if awsconfig['use_system_credentials']:
+        return boto3.client('sqs')
+    else:
+        return boto3.client('sqs', aws_access_key_id=awsconfig['key_id'], aws_secret_access_key=awsconfig['access_key'],
+                 region_name=awsconfig['region'])
+
 def read_queue(callback = None, awsconfig=AwsConfig):
     maxMessages = 10 #0-10, limited by AWS
-    sqs = boto3.client('sqs',aws_access_key_id=awsconfig['key_id'],aws_secret_access_key=awsconfig['access_key'],
-                       region_name=awsconfig['region'])
+
+    sqs = getClient(awsconfig)
 
     fullQueue = True
     totalRead = 0
@@ -65,8 +68,7 @@ def read_queue(callback = None, awsconfig=AwsConfig):
 def write_queue(messages: Iterable[Tuple[Any, Any]], awsconfig = AwsConfig) -> Tuple[List[Any],List[Any]]:
     if Callable is None:
         return
-    sqs = boto3.client('sqs', aws_access_key_id=awsconfig['key_id'], aws_secret_access_key=awsconfig['access_key'],
-                       region_name=awsconfig['region'])
+    sqs = getClient(awsconfig)
 
     succeeded = []
     failed = []

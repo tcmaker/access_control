@@ -61,7 +61,9 @@ class Configuration():
                                          "__line__": {},
                                      },
                                      "required": ['secretkey', 'username','password']},
-                          "aws": {"type": "object",
+                          "aws": {
+                              "oneOf" : [
+                              {"type": "object",
                                         "additionalProperties" : False,
                                        "properties": {
                                            "key_id": {"type": "string"},
@@ -69,9 +71,18 @@ class Configuration():
                                            "region": {"type": "string"},
                                            "incoming": {"type": "string"},
                                            "outgoing": {"type": "string"},
+                                           "use_system_credentials": { "const" : False},
                                            "__line__": {},
                                        },
                                        "required": ['key_id', 'access_key', 'region','incoming','outgoing']},
+                              {"type" : "object",
+                                "additionalProperties" : False,
+                                "properties" : {
+                                    "use_system_credentials": {"const" : True},
+                                    "__line__": {},
+                                },
+                                  "required" : ['use_system_credentials']}
+                            ]},
                           "scanners": {"type" : ["object","null"],
                                        "properties" : {
                                            "__line__": {},
@@ -131,6 +142,9 @@ class Configuration():
                     raise ConfigurationException(ve.schema['error_msg'])
                 else:
                     raise ConfigurationException(str(ve))
+
+            if 'use_system_credentials' not in config['aws']:
+                config['aws']['use_system_credentials'] = False
 
             self.DatabaseFile = config['system']['database']
             self.LogFile = config['system']['logfile']

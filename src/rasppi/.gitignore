@@ -1,0 +1,5 @@
+venv
+*.db
+*.log
+__pycache__
+door_config.yaml

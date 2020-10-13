@@ -1,0 +1,72 @@
+system:
+  logfile: tcdoor.log
+  database: dooraccess.db
+
+webpanel:
+  # Use random value here
+  # import os; print(os.urandom(16)) works to generate it
+  secretkey: FHiKD45Ru72ftpXeWkLTzfbJwH
+  # Change me
+  username: tcmaker
+  password: hackfactory
+
+aws:
+  use_system_credentials: true
+
+  # If the above is set to false, these values should be uncommented and set
+  # When the above is true, the SQS client will search ~/.aws/ for credentials
+  #key_id: 1234567890
+  #access_key: SuPaRsEcReTkEy
+  #region: us-east-1
+  #incoming: https://url_for_incoming_queue.fifo
+  #outgoing: https://url_for_outgoing_queue.fifo
+
+scanners:
+  # Format
+  # scannername: - name of the scanner
+  #   board: resource name of the board, e.g. "ftdi://ftdi:232:AM01QC8Q/1"
+  #          resource names can be found via TODO
+  #   scanner: scanner's index on the board.
+  #
+  # Example:
+  #
+  # frontdoorscanner:
+  #   board: &aliasname "ftdi://ftdi:232/A123456/1"
+  #   scanner: 1
+
+  frontscanner:
+    board: &accxboard "ftdi://ftdi:232:AM01QC8Q/1"
+    scanner: 1
+
+  rearscanner:
+    board: *accxboard
+    scanner: 2
+
+facilities:
+  # Format
+  # facilityname: - name of the facility
+  #   board: resource name of the board, same as scanners
+  #   scanner: NAME of scanner to use to grant access to the facility
+  #   outscanner: [Optional] NAME of scanner to use to signify exiting/finishing with the facility
+  #   relay: index of the relay to activate to unlock access to the facility
+  #   duration: [Optional] duration in floating point seconds to energize the relay
+  #
+  # Example:
+  #
+  # frontdoor:
+  #   board: &aliasname
+  #   scanner: frontdoorscanner
+  #   outscanner: exitscanner
+  #   relay: 1
+  #   duration: 5
+
+  frontdoor:
+    board: *accxboard
+    scanner: frontscanner
+    relay: 1
+
+  laser:
+    board: *accxboard
+    scanner: rearscanner
+    relay: 2
+
