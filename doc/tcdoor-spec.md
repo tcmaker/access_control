@@ -98,7 +98,7 @@ Question - would we want the open-house to wait to turn on until someone with so
 | Timespec       | String   | Either the string `always` or an icalendar with an event definition                                                      |
 | Tag            | GUID     | Used to revoke a access requirement specification     |
  
-####Activity
+#### Activity
 
 Used for logging / auditing
 
@@ -137,7 +137,7 @@ Details that cannot be determined by example usages listed below will be describ
     "codetype" : "fob",                              //"fob" or "passcode"
     "member": "3870",                                //string or int
     "priority":  3,                                  //integer
-    "tag":  "d2f3ce26-12ab-4b2a-8943-d49e4a7b1420",
+    "tag":  "d2f3ce26-12ab-4b2a-8943-d49e4a7b1420",  //unique per reservation
     "effective" : "ISO8601 UTC Time",
     "expiration" : "ISO8601 UTC Time"
 }
@@ -146,9 +146,13 @@ Details that cannot be determined by example usages listed below will be describ
 ##### Revoke Credential
 ```json
 {
-    "action": "revoke",
-    "facility" : "facilityname",
-    "tag" : "f2151449-113e-4e2c-8c7d-fcecafd8b9d8"
+    "action": "revoke",    
+    // Optional, if missing does all facilities  
+    "facility" : "facilityname",    
+    
+    // One of these
+    "tag" : "f2151449-113e-4e2c-8c7d-fcecafd8b9d8", // delete reservation essentially
+    "member" :  "1234" //delete entire user    
 }
 ```
  
@@ -158,7 +162,7 @@ Change all of a memberid's credentials, to replace a keyfob, for example
 ```json
 {
     "action": "modify",
-    "facility" : "name",    
+    //"facility" : "name",    
     "member" : "memberId", 
     "oldtype": "fob",          //"fob" or "passcode"
     "oldcode": "numbers",    
@@ -168,6 +172,9 @@ Change all of a memberid's credentials, to replace a keyfob, for example
 ```   
 
 ##### Set Requirement
+
+If a requirement with the matching tag already exists, it SHALL be updated instead
+of writing a new entry to the DB. 
  
 ```json
 {
@@ -189,8 +196,7 @@ For `timespec`, one of the following values SHALL be used:
 
 ```json
 {
-    "action": "revoke-requirement",
-    "facility" : "facilityname",
+    "action": "revoke-requirement",    
     "tag" : "192f0827-3a9c-41f1-a7e1-5446340a744a"
 }
 ```
@@ -221,7 +227,11 @@ The admin panel SHALL provide the following basic functions:
 1. Querying current authorization status for a specific fob or passcode
 1. Download a dump off all activity within a user-specified date range.
 1. Viewing of diagnostic log (will display same information as syslog)
-1. Maybe perform some diagnostic functions of the hardware, open/close door, etc.  
+1. Maybe perform some diagnostic functions of the hardware, open/close door, etc.
+
+The admin software SHALL/MAYBE? provide RESTish API access to the following queries:
+1. The current requirement level for a given facility
+  
 
 Access control to the web panel SHALL be through Basic HTTP Authentication, with username/password combo
 configured in the software config file.
