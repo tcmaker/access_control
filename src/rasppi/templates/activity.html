@@ -38,6 +38,7 @@
     <th>Facilitiy</th>
     <th>MemberId</th>
     <th>Authcode</th>
+    <th>Granter</th>
     <th>Result</th>
 </tr>
 </thead>
@@ -48,7 +49,8 @@
     <td>{{ a.facility }}</td>
     <td>{{ a.memberid }}</td>
         <td>{{ a.credentialref }}</td>
-    <td>{{ a.result }}</td>
+    <td>{{ a.authorization }}</td>
+        <td>{{ a.result }}</td>
     </tr>
 {% endfor %}
 </tbody>

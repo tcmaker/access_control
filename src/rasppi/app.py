@@ -7,8 +7,6 @@ logging.getLogger('sqlalchemy.orm').setLevel(logging.FATAL)
 logging.getLogger('werkzeug').setLevel(logging.FATAL)
 
 logger = logging.getLogger("app")
-
-
 from webpanel import webpanel
 
 import multiprocessing as mp
@@ -19,7 +17,6 @@ from authorization_service import AuthorizationService
 
 if __name__ == '__main__':
     Debug = False
-
     if not Debug:
         sq = mp.Queue()
         wq = mp.Queue()

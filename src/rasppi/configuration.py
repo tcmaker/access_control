@@ -3,12 +3,15 @@ from typing import Dict, Any, List, Tuple
 from hashids import Hashids
 import jsonschema
 import logging
+import logging.config
+import logging.handlers
+
 import os
+import plugins
 
+from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-
-from models import Base
+from models import DoorControllerBase
 
 from yaml import load, safe_load
 from yaml.loader import  SafeLoader
@@ -41,17 +44,61 @@ class Scanner():  # represents a scanner on a board
 class ConfigurationException(Exception):
     pass
 
+def validatePluginSchema(s):
+    if type(s) is not tuple:
+        return False
+    if len(s) != 3:
+        return False
+    if type(s[0]) is not str or type(s[1]) is not dict or type(s[2]) is not bool:
+        return False
+    return True
+
 class Configuration():
+    authModules = plugins.load_plugins("auth")
+
+    schemas = [mod.get_configuration_schema() for mod in authModules]
+    for s in schemas:
+        if not validatePluginSchema(s):
+            print(f"FATAL: invalid plugin schema: {s}")
+    requiredconfigs = [n[0] for n in (filter(lambda s: s[2],schemas))]
+    #for r in requiredconfigs:
+    #   required.append(r)
+
+    props = {}
+    for s in schemas:
+        props[s[0]] = s[1]
+    authSchema = { "type" : "object",
+                   "properties" :
+                       props,
+                   "required" : requiredconfigs
+                   }
+
     config_schema = { "type" : "object",
                       "properties" : {
                           "system" : { "type" : "object",
                                        "additionalProperties": False,
                                        "properties" : {
                                            "logfile" : { "type" : "string"},
-                                           "database": {"type": "string"},
+                                           "activitydb": {"type": "string"},
+                                           "email_alerts" : {"type" : "object",
+                                                     "additionalProperties": False,
+                                                     "properties" : {
+                                                         "host": {"type": "string"},
+                                                         "port": {"type": "integer"},
+                                                         "from_addr": {"type": "string", "format" : "idn-email"},
+                                                         "to_addrs": {"type": "array", "items" : {"type":"string", "format" : "idn-email"}},
+                                                         "subject": {"type": "string"},
+                                                         "smtp_user": {"type": "string"},
+                                                         "smtp_pass": {"type": "string"},
+                                                         "level": {"type": "string",
+                                                                    "enum": ["critical", "fatal", "error", "warning"]},
+                                                         "__line__": {},
+                                                           },
+                                                        "required" : ["host","port","from_addr","to_addrs","subject","smtp_user","smtp_pass"]
+                                                      },
                                            "__line__" : { },
                                        },
-                                       "required" : ['logfile','database']},
+                                       "required" : ['activitydb','logfile']},
                           "webpanel": {"type": "object",
                                        "additionalProperties": False,
                                      "properties": {
@@ -61,28 +108,7 @@ class Configuration():
                                          "__line__": {},
                                      },
                                      "required": ['secretkey', 'username','password']},
-                          "aws": {
-                              "oneOf" : [
-                              {"type": "object",
-                                        "additionalProperties" : False,
-                                       "properties": {
-                                           "key_id": {"type": "string"},
-                                           "access_key": {"type": "string"},
-                                           "region": {"type": "string"},
-                                           "incoming": {"type": "string"},
-                                           "outgoing": {"type": "string"},
-                                           "use_system_credentials": { "const" : False},
-                                           "__line__": {},
-                                       },
-                                       "required": ['key_id', 'access_key', 'region','incoming','outgoing']},
-                              {"type" : "object",
-                                "additionalProperties" : False,
-                                "properties" : {
-                                    "use_system_credentials": {"const" : True},
-                                    "__line__": {},
-                                },
-                                  "required" : ['use_system_credentials']}
-                            ]},
+                          "auth" : authSchema,
                           "scanners": {"type" : ["object","null"],
                                        "properties" : {
                                            "__line__": {},
@@ -122,7 +148,9 @@ class Configuration():
                                        }
 
                       },
-                      "required" : ["system","webpanel","aws","scanners","facilities"]}
+                      "required" : ["system", "webpanel", "auth", "scanners", "facilities"]}
+
+
 
     FileName = os.path.abspath('door_config.yaml')
 
@@ -137,27 +165,22 @@ class Configuration():
 
             try:
                 jsonschema.validate(config,self.config_schema)
+            except jsonschema.SchemaError as se:
+                raise ConfigurationException(str(se))
             except jsonschema.ValidationError as ve:
                 if 'error_msg' in ve.schema:
                     raise ConfigurationException(ve.schema['error_msg'])
                 else:
                     raise ConfigurationException(str(ve))
 
-            if 'use_system_credentials' not in config['aws']:
-                config['aws']['use_system_credentials'] = False
-
-            self.DatabaseFile = config['system']['database']
             self.LogFile = config['system']['logfile']
-
+            self.ActivityDb = config['system']['activitydb']
             #attempt to write to that file
             #try:
             #    with open(self.LogFile, 'r+') as writer:
             #        pass
             #except:
             #    raise ConfigurationException(f'Unable to open log file "{self.LogFile}" for writing!' )
-
-
-
 
             self.WebpanelLogin = {
                 config['webpanel']['username']: config['webpanel']['password']
@@ -175,70 +198,96 @@ class Configuration():
             self.Scanners: Dict[str, Scanner] = {}
             self.Facilities: Dict[str, Facility] = {}
 
-            for sn, sv in config['scanners'].items():
-                if sn == '__line__':
-                    continue
-                #TODO: should we disallow numbered scanners
-                dev = sv['board']
-                s = Scanner(name=sn,board=dev,scannerIndex=sv['scanner'])
-                self.Scanners[sn] = s
-                if dev not in self.Devices:
-                    self.Devices.append(dev)
+            if config['scanners'] is not None:
+                for sn, sv in config['scanners'].items():
+                    if sn == '__line__':
+                        continue
+                    #TODO: should we disallow numbered scanners
+                    dev = sv['board']
+                    s = Scanner(name=sn,board=dev,scannerIndex=sv['scanner'])
+                    self.Scanners[sn] = s
+                    if dev not in self.Devices:
+                        self.Devices.append(dev)
 
-            for fn, fv in config['facilities'].items():
-                if fn == '__line__':
-                    continue
-                b = fv['board']
-                s = fv['scanner']
-                r = fv['relay']
+            if config['facilities'] is not None:
+                for fn, fv in config['facilities'].items():
+                    if fn == '__line__':
+                        continue
+                    b = fv['board']
+                    s = fv['scanner']
+                    r = fv['relay']
 
-                relaymap = (b, r)
-                scanners = [s]
-                os = None
-                if 'outscanner' in fv:
-                    os = fv['outscanner']
-                    scanners.append(os)
+                    relaymap = (b, r)
+                    scanners = [s]
+                    os = None
+                    if 'outscanner' in fv:
+                        os = fv['outscanner']
+                        scanners.append(os)
 
-                for ss in scanners:
-                    if ss not in self.Scanners:
-                        raise ConfigurationException(f"Scanner {ss} is not defined!")
+                    for ss in scanners:
+                        if ss not in self.Scanners:
+                            raise ConfigurationException(f"Scanner {ss} is not defined!")
 
-                for ss in scanners:
-                    if ss in claimedscanners:
-                        facil = claimedscanners[ss]
-                        raise ConfigurationException(f"Scanner {ss} already claimed by facility '{facil.name}'")
+                    for ss in scanners:
+                        if ss in claimedscanners:
+                            facil = claimedscanners[ss]
+                            raise ConfigurationException(f"Scanner {ss} already claimed by facility '{facil.name}'")
 
-                inScanner = self.Scanners[s]
-                outScanner = self.Scanners[os] if 'outscanner' in fv else None
+                    inScanner = self.Scanners[s]
+                    outScanner = self.Scanners[os] if 'outscanner' in fv else None
 
-                if relaymap in mappedrelays:
-                    match = list(filter(lambda f: f.board == b and f.relay == r, self.Facilities.values()))
+                    if relaymap in mappedrelays:
+                        match = list(filter(lambda f: f.board == b and f.relay == r, self.Facilities.values()))
 
-                    raise ConfigurationException(f"Facility {fn}: relay {r} on board {b} already claimed by facility {match[0].name}'")
+                        raise ConfigurationException(f"Facility {fn}: relay {r} on board {b} already claimed by facility {match[0].name}'")
 
-                duration = fv['unlockduration'] if 'unlockduration' in fv else 2.0
-                newfacility = Facility(fn, b, inScanner, r, duration, outscanner=outScanner )
+                    duration = fv['unlockduration'] if 'unlockduration' in fv else 2.0
+                    newfacility = Facility(fn, b, inScanner, r, duration, outscanner=outScanner )
 
-                self.Facilities[fn] = newfacility
-                for ss in scanners:
-                    claimedscanners[ss] = newfacility
-                mappedrelays.append(relaymap)
-                if newfacility.outscanner is not None:
-                    claimedscanners[newfacility.outscanner] = newfacility
+                    self.Facilities[fn] = newfacility
+                    for ss in scanners:
+                        claimedscanners[ss] = newfacility
+                    mappedrelays.append(relaymap)
+                    if newfacility.outscanner is not None:
+                        claimedscanners[newfacility.outscanner] = newfacility
 
-            engine = create_engine(f"sqlite:///{self.DatabaseFile}")
-            Session = sessionmaker(bind=engine)
-            session = Session()
-            self.ScopedSession = scoped_session(Session)
 
-            Base.metadata.create_all(engine)
 
             self.RawConfig = config
+
+            engine = create_engine(f"sqlite:///{self.ActivityDb}")
+            Session = sessionmaker(bind=engine)
+            # session = Session()
+            self.ScopedSession = scoped_session(Session)
+            DoorControllerBase.metadata.create_all(engine)
+
         except Exception as e:
             raise ConfigurationException(e)
 
         FORMAT = "%(levelname)s:%(asctime)s:%(name)s - %(message)s"
-        logging.basicConfig(filename=self.LogFile, level=logging.INFO, format=FORMAT)
+
+        logging.basicConfig(filename=self.LogFile, level=logging.INFO, format=FORMAT, force=True)
+        try:
+            if "email_alerts" in config["system"]:
+                self.HasEmail = True
+                email = config["system"]["email_alerts"]
+                smtp_handler = logging.handlers.SMTPHandler(mailhost=(email["host"], email["port"]),
+                                                             fromaddr=email["from_addr"],
+                                                             toaddrs=email["to_addrs"],
+                                                             subject=email["subject"],
+                                                             credentials=(email["smtp_user"],email["smtp_pass"]),
+                                                             secure=(),timeout=3
+                                                            )
+                email_level = logging.CRITICAL if "level" not in email else \
+                                        logging.CRITICAL if email["level"] == "critial" else \
+                                        logging.CRITICAL if email["level"] == "fatal" else \
+                                        logging.ERROR if email["level"] == "error" else \
+                                        logging.WARNING
+                smtp_handler.setLevel(email_level)
+                smtp_handler.setFormatter(logging.Formatter(FORMAT))
+                logging.root.addHandler(smtp_handler)
+        except:
+            pass
 
     def __init__(self, stringInput = None):
         self.Reload(stringInput)
@@ -253,6 +302,7 @@ class Configuration():
         return self.Devices
 
 Config = Configuration()
+
 #logging.basicConfig(level=logging.DEBUG)
 
 

@@ -1,31 +1,34 @@
 import boto3
 from botocore.exceptions import  ClientError
-from configuration import Config
 import logging
 from json import loads, dumps
 from typing import List, Any, Dict, Callable,Tuple, Iterable
 from uuid import uuid4
+from datetime import datetime
 logger = logging.getLogger("aws")
 
-AwsConfig = Config.RawConfig['aws']
+#AwsConfig = Config.RawConfig['aws']
 logging.getLogger('botocore').setLevel(logging.ERROR)
 logging.getLogger('urllib3').setLevel(logging.ERROR)
 
-def getClient(awsconfig=AwsConfig):
-    if awsconfig['use_system_credentials']:
-        return boto3.client('sqs')
-    else:
+def getClient(awsconfig):
+    #if awsconfig['use_system_credentials']:
+    #    return boto3.client('sqs')
+    #else:
         return boto3.client('sqs', aws_access_key_id=awsconfig['key_id'], aws_secret_access_key=awsconfig['access_key'],
                  region_name=awsconfig['region'])
 
-def read_queue(callback = None, awsconfig=AwsConfig):
+def read_queue(awsconfig, callback = None):
     maxMessages = 10 #0-10, limited by AWS
 
     sqs = getClient(awsconfig)
 
     fullQueue = True
     totalRead = 0
-    while fullQueue: # todo: ensure we always break out of here before too long
+    now = datetime.now()
+    while fullQueue:
+        if (datetime.now() - now).total_seconds() > 45: #don't stay in this loop for too long
+            break
         response = sqs.receive_message(QueueUrl=awsconfig['incoming'], AttributeNames=['SentTimestamp'],
                                        MaxNumberOfMessages=maxMessages,
                                        MessageAttributeNames=['All'],
@@ -61,11 +64,11 @@ def read_queue(callback = None, awsconfig=AwsConfig):
             fullQueue = False
 
     if totalRead > 0:
-        logger.info(f"Read {len(response['Messages'])} message(s) from queue!")
+        logger.debug(f"Read {len(response['Messages'])} message(s) from queue!")
     else:
         logging.debug("No messages in response")
 
-def write_queue(messages: Iterable[Tuple[Any, Any]], awsconfig = AwsConfig) -> Tuple[List[Any],List[Any]]:
+def write_queue(messages: Iterable[Tuple[Any, Any]], awsconfig) -> Tuple[List[Any],List[Any]]:
     if Callable is None:
         return
     sqs = getClient(awsconfig)

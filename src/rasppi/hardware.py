@@ -34,6 +34,7 @@ def query_devices(ignored_devices):
     if ignored_devices is not None and not hasattr(ignored_devices, '__iter__'):
         raise ValueError("Invalid ignored devices variable")
 
+    ignored_ids = list(map(lambda d: d.device_id, ignored_devices))
     def map_url(dev):
         usb: UsbDeviceDescriptor = dev[0]
         vid = usb.vid
@@ -46,13 +47,24 @@ def query_devices(ignored_devices):
         return f"ftdi://{vid}:{pid}:{usb.sn}/{interface}"
 
     all_devices = list(map(map_url, Ftdi.list_devices()))
-    if ignored_devices is None:
-        return all_devices
 
     def not_ignored(dev):
-        return dev not in ignored_devices
+        return dev not in ignored_ids
 
-    return list(filter(not_ignored, all_devices))
+    if ignored_devices is None:
+        to_query = all_devices
+    else:
+        to_query = list(filter(not_ignored, all_devices))
+
+    discovered_boards = []
+    for t in to_query:
+        try:
+            qb = ReaderBoard(deviceid=t)
+            discovered_boards.append(qb.__repr__())
+            qb.shutdown()
+        except:
+            pass
+    return discovered_boards
 
 
 class ReaderBoard:
@@ -72,7 +84,7 @@ class ReaderBoard:
         self._startedEvent = Event()
         self._stoppedEvent = Event()
         self._run = True
-        self._deviceId = deviceid
+        self.device_id = deviceid
         self._ftdi = Ftdi()
         self.numScanners = 0
         self.numRelays = 0
@@ -86,7 +98,7 @@ class ReaderBoard:
         self._body = bytearray()
 
         # self.ftdi.open(vendor=0x0403,product=0x6001, serial=self.device)
-        self._ftdi.open_from_url(self._deviceId)
+        self._ftdi.open_from_url(self.device_id)
         self._ftdi.set_baudrate(57600)
 
         self._backgroundThread = Thread(target=self.background)
@@ -212,7 +224,7 @@ class ReaderBoard:
                         logger.log(logging.DEBUG, f"Read a packet: {self._firstChar}, {self._body}")
                         if self.packetCallback is not None:
                             try:
-                                self.packetCallback(self._firstChar, self._body.decode("utf-8"), self._deviceId)
+                                self.packetCallback(self._firstChar, self._body.decode("utf-8"), self.device_id)
                             except Exception as e:
                                 logger.log(logging.FATAL, f"Failed calling packet callback: {e}")
                         if not (self._firstChar == 'e' and len(self._body) == 1 and self._body[0] == ord('0')):
@@ -241,9 +253,12 @@ class ReaderBoard:
             if self._run:
                 raise SystemError("Sync Error")
 
+    def __repr__(self):
+        return f"{self.device_id} - {self.model} v{self.version}: {self.numScanners} scanners, {self.numRelays} relays"
+
     def Unlock(self, relay, duration, credential=None):
         if relay > self.numRelays:
-            logger.error(f"Attempt to activate a relay board {self._deviceId} doesn't have. {relay}")
+            logger.error(f"Attempt to activate a relay board {self.device_id} doesn't have. {relay}")
             return
         now = time()
         self._unlockTimeouts[relay].append(LockTimeout(now + duration, credential))
@@ -252,7 +267,7 @@ class ReaderBoard:
 
     def Lock(self, relay, credential=None):
         if relay > self.numRelays:
-            logger.error(f"Attempt to activate a relay board {self._deviceId} doesn't have. {relay}")
+            logger.error(f"Attempt to activate a relay board {self.device_id} doesn't have. {relay}")
             return
         if credential is None: #This only is raised by the webpanel, clear our all entries, and the relay
             # will be relocked by the loop

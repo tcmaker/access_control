@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from pytz import utc
 
-from models import Activity, AccessRequirement, Credential
+from models import Activity#, AccessRequirement, Credential
 from multiprocessing import Queue
 from queue import Empty
 
@@ -28,7 +28,7 @@ def hashid(int):
 
 @webpanel.template_filter()
 def is_fatal(s : str):
-    return "text-light" if s.startswith("FATAL") else ""
+    return "text-light bg-dark" if s.startswith("FATAL") or s.startswith("CRITIAL") else ""
 
 @webpanel.template_filter()
 def is_error(s : str):
@@ -89,11 +89,12 @@ def configuration():
 @webpanel.route('/query_hardware', methods=['post'])
 @auth.login_required
 def query_hardware():
+    #rapidly clicking query could cause problems.
     q: Queue = webpanel.config['squeue']
     w: Queue = webpanel.config['wqueue']
     q.put(("query",))
     try:
-        status = w.get(True, 2.0)
+        status = w.get(True, 10.0)
     except Empty:
         status = []
 
@@ -170,6 +171,7 @@ def activity():
 @webpanel.route('/users')
 @auth.login_required
 def users():
+    return "Disabled for now"
     page = request.args['page'] if 'page' in request.args else 1
     try:
         page = int(page)
@@ -219,7 +221,9 @@ def export():
 
 
 @webpanel.template_filter()
-def format_active(ar : AccessRequirement):
+#def format_active(ar : AccessRequirement):
+def format_active(ar):
+    return "ZING"
     if ar.always_active():
         return "Always"
     else:
@@ -243,7 +247,9 @@ def diagnostics():
     facility_map = {}
     for f in status:
         facility_map[f] = ( Config.Facilities[f].board, Config.Facilities[f].relay )
-    requirements : List[AccessRequirement] = list(g.dbsession.query(AccessRequirement).order_by(AccessRequirement.requiredpriority.desc()).all())
+    #requirements : List[AccessRequirement] = list(g.dbsession.query(AccessRequirement).order_by(AccessRequirement.requiredpriority.desc()).all())
+    #TODO
+    requirements = []
     requiredLevel = 0
     for r in requirements:
         if r.is_active():
@@ -292,4 +298,25 @@ def log():
     def doencode(l):
         return l.decode('utf-8').replace('\n',"")
 
-    return render_template('log.html',logsize=len(rl),logcontents=map(doencode,rl),ctx="log")
+    grouped = []
+    item = []
+    ll: str
+    for ll  in map(doencode,rl):
+        if not ll[:5] in ["INFO:", "DEBUG","ERROR","CRITI","FATAL","WARNI"]:
+            item.append(ll)
+        else:
+            if len(item) > 0:
+                grouped.append(item)
+            item = [ll]
+    if len(item) > 0:
+        grouped.append(item)
+
+    grouped.reverse()
+
+    def collapse_group(l):
+        if len(l) == 1:
+            return [l[0]]
+        else:
+            return [l[0],"\n".join(l[1:])]
+
+    return render_template('log.html',logsize=len(rl),logcontents=map(collapse_group,grouped),ctx="log")

@@ -3,9 +3,21 @@
 {% block titlecontent %}<h1 class="h3">Last {{ logsize }} lines</h1>{% endblock %}
 {% block content %}
 <table class="table-sm table">
-{% for line in logcontents %}
+{% for group in logcontents %}
 <tr>
-    <td><span class="text-monospace {{ line|is_error }} {{ line|is_fatal }} {{ line|is_warning }} {{ line|is_info }} {{ line|is_debug }}">{{ line }}</span></td>
+    <td>
+
+        <span class="text-monospace {{ group[0]|is_error }} {{ group[0]|is_fatal }} {{ group[0]|is_warning }} {{ group[0]|is_info }} {{ group[0]|is_debug }}">{{ group[0] }}</span>
+        {% if group|length > 1 %}
+        {#  <pre>{% for line in group[1:] %} {{ line }}{% if loop.last %}{% else %}
+{% endif %}{% endfor %}</pre> #}
+            <pre>{{ group[1] }}</pre>
+        {% endif %}
+
+
+
+
+    </td>
 </tr>
 {% endfor %}
 </table>

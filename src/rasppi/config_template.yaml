@@ -1,7 +1,17 @@
 system:
   logfile: tcdoor.log
   database: dooraccess.db
-
+  email_alerts: #we can setup an email alert if a critical error of any kind is encountered
+    host: smtp.gmail.com
+    port: 587
+    from_addr: door@example.com
+    to_addrs:
+      - it@example.com
+      - manager@example.com
+    subject: Door Controller Failure
+    smtp_user: user@gmail.com
+    smtp_pass: abcdefg
+    level: critical # one of critical, fatal, error, warning
 webpanel:
   # Use random value here
   # import os; print(os.urandom(16)) works to generate it
