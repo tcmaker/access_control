@@ -1,0 +1,11 @@
+[Unit]
+Description=Door controller service
+After=multi-user.target
+
+[Service]
+#changeme
+WorkingDirectory=/home/pi/door_control
+ExecStart=/home/pi/venv/bin/python3 /home/pi/access_control/src/rasppi/app.py
+
+[Install]
+WantedBy=multi-user.target

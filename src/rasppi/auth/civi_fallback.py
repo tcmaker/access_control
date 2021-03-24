@@ -90,6 +90,7 @@ class CiviFallback(AuthPlugin):
         self.LastSQLRefresh = datetime.min
         self.awslock = Lock()
         self._awsFailure = False
+        self._mysqlFailure = False
 
 
     def refresh_database(self):
@@ -98,8 +99,11 @@ class CiviFallback(AuthPlugin):
             self.LastSQLRefresh = now
             try:
                 self.refresh_civisql()
+                self._mysqlFailure = False
             except Exception as e:
-                logger.error("Unable to refresh civi database!")
+                if not self._mysqlFailure:
+                    logger.error("Unable to refresh civi database!")
+                    self._mysqlFailure = True
         #do our AWS checks every time
         self.refresh_aws()
 

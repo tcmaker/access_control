@@ -9,7 +9,7 @@ from time import sleep, time
 from pyftdi.ftdi import Ftdi
 
 logger = logging.getLogger("Hardware")
-logger.setLevel(logging.DEBUG)
+#logger.setLevel(logging.DEBUG)
 
 
 def list_devices():

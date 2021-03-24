@@ -213,8 +213,9 @@ class ClubhouseAuthentication(AuthPlugin):
                 credential = message['code']
                 credtype = message['codetype']
                 memberid = str(message['member'])
-                if (nonmatch := db.query(Credential).filter(Credential.credential == credential).filter(
-                        Credential.type == credtype).filter(Credential.memberid != memberid).first()) is not None:
+                nonmatch = db.query(Credential).filter(Credential.credential == credential).filter(
+                    Credential.type == credtype).filter(Credential.memberid != memberid).first()
+                if nonmatch is not None:
                     # if nonmatch is not None:
                     raise Exception(
                         f"Got a duplicate credential with non-matching memberid. {nonmatch.credential} : {nonmatch.memberid}")

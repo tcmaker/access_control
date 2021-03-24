@@ -44,7 +44,7 @@
 </thead>
 <tbody>
     {% for a in activity %}
-    <tr>
+    <tr {{ 'class=table-danger' if a.result == "denied" }}>
     <td>{{ a.timestamp.strftime("%c") }}</td>
     <td>{{ a.facility }}</td>
     <td>{{ a.memberid }}</td>

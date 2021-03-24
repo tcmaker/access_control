@@ -10,7 +10,6 @@ logger = logging.getLogger("app")
 from webpanel import webpanel
 
 import multiprocessing as mp
-from multiprocessing import  shared_memory
 
 from authorization_service import AuthorizationService
 
