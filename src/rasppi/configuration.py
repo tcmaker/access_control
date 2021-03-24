@@ -266,7 +266,8 @@ class Configuration():
 
         FORMAT = "%(levelname)s:%(asctime)s:%(name)s - %(message)s"
 
-        logging.basicConfig(filename=self.LogFile, level=logging.INFO, format=FORMAT, force=True)
+        #TODO: bring back force=true for a 3.7 version install
+        logging.basicConfig(filename=self.LogFile, level=logging.INFO, format=FORMAT)
         try:
             if "email_alerts" in config["system"]:
                 self.HasEmail = True
