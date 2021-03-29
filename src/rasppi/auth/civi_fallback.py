@@ -120,7 +120,9 @@ class CiviFallback(AuthPlugin):
         now = date.today()
         for contact_id, status_id, fob, end_date in cur:
             sid = int(status_id)
-            is_active = False if end_date == None else sid <= 3 and now < end_date
+            is_active = True if sid <= 2 else \
+                False if end_date == None \
+                        else sid == 3 and (now - end_date).days < 31
             cid = int(contact_id)
             #if cid == 3870:
             #    print("It's me!")
@@ -152,8 +154,9 @@ class CiviFallback(AuthPlugin):
                 if bm.contact_id in members:
                     # update the item
                     civi_member = members[bm.contact_id]
-                    if bm.member_active != civi_member.is_active:
+                    if (bm.member_active != civi_member.is_active) or (bm.fob != civi_member.fob_code):
                         bm.member_active = civi_member.is_active
+                        bm.fob = civi_member.fob_code
                         num_modified += 1
                     members.pop(bm.contact_id)
                 else:
@@ -165,9 +168,12 @@ class CiviFallback(AuthPlugin):
             #add new entries for any remaining
             v: CiviMember
             for (k,v) in members.items():
-                cb = CiviBridge(contact_id = v.contact_id,fob=f"{v.fob_code}",expiration=v.expiration_date,member_active=v.is_active,
+                try:
+                    cb = CiviBridge(contact_id = v.contact_id,fob=f"{str(int(v.fob_code))}",expiration=v.expiration_date,member_active=v.is_active,
                                 timeslot_active=False)
-                db.add(cb)
+                    db.add(cb)
+                except: 
+                    logger.warn(f"bad fob value {v.fob_code} for user {v.contact_id}")
             db.commit()
             logger.debug(f"Added {len(members)} new civi db entries")
         except Exception as e:
@@ -228,14 +234,14 @@ class CiviFallback(AuthPlugin):
             if len(bridge_user) == 0:
                 return (False, None, None)
             if len(bridge_user) > 1:
-                self.logger.warning(f"Unexpected duplicate users with same fob number: {credential_value}")
+                logger.warning(f"Unexpected duplicate users with same fob number: {credential_value}")
             bridge_user : CiviBridge = bridge_user[0]
             if self.EnforceTimeslots:
                 return (bridge_user.member_active and bridge_user.timeslot_active, bridge_user.contact_id,"cividb")
             else:
-                return (bridge_user.member_active, bridge_user.contact_id,"cividb-notimeslot" if bridge_user.timeslot_active else "cividb")
+                return (bridge_user.member_active, bridge_user.contact_id,"cividb-notimeslot" if not bridge_user.timeslot_active else "cividb")
         except Exception as e:
-            self.logger.error(f"Unable to test fob: {credential_value}, e: {e}")
+            logger.error(f"Unable to test fob: {credential_value}, e: {e}")
         finally:
             db.close()
 
