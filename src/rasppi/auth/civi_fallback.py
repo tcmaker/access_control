@@ -1,7 +1,7 @@
 from auth.auth_plugin import AuthPlugin
 import mariadb
 from datetime import date, datetime
-from threading import Lock
+from threading import Lock, Thread
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import Table, Column, Integer, String, Date, Boolean, ForeignKey
@@ -91,27 +91,36 @@ class CiviFallback(AuthPlugin):
         self.awslock = Lock()
         self._awsFailure = False
         self._mysqlFailure = False
+        self.refresh_lock = Lock()
 
 
     def refresh_database(self):
         now = datetime.now()
         if (now - self.LastSQLRefresh).total_seconds() >= self.Refresh:
-            self.LastSQLRefresh = now
-            try:
-                self.refresh_civisql()
-                self._mysqlFailure = False
-            except Exception as e:
-                if not self._mysqlFailure:
-                    logger.error("Unable to refresh civi database!")
-                    self._mysqlFailure = True
+            if not self.refresh_lock.locked():
+                self.LastSQLRefresh = now
+                Thread(target=self.do_refresh_db).start()
         #do our AWS checks every time
-        self.refresh_aws()
+        #self.refresh_aws() # or don't because we're not using it!
+
+    def do_refresh_db(self):
+        try:
+            self.refresh_lock.acquire(True,timeout=3)
+            self.refresh_civisql()
+            self._mysqlFailure = False
+        except Exception as e:
+            if not self._mysqlFailure:
+                logger.error("Unable to refresh civi database!")
+                self._mysqlFailure = True
+        finally:
+            self.refresh_lock.release()
 
     def refresh_civisql(self):
         logger.debug("Refreshing civi db")
         query = "select civicrm_membership.contact_id,civicrm_membership.status_id,civicrm_keyfob.code,civicrm_membership.end_date from civicrm_keyfob join civicrm_membership on civicrm_keyfob.contact_id=civicrm_membership.contact_id order by civicrm_membership.contact_id"
         conn = mariadb.connect(user=self.User, password=self.Pass,
-                               host=self.Host, database=self.Database)
+                               host=self.Host, database=self.Database,
+                               connect_timeout=3)
         cur = conn.cursor()
         cur.execute(query)
         members = {}
@@ -130,7 +139,7 @@ class CiviFallback(AuthPlugin):
                 # we've got a duplicate, take the highest priority level
 
                 if sid < member_details.status_id:
-                    member_details = CiviMember(cid,sid,fob,end_date,is_active)
+                    member_details = CiviMember(cid,sid,str(int(fob)),end_date,is_active)
             else:
                 # new entry
                 # push the last read row to the dict
@@ -138,7 +147,7 @@ class CiviFallback(AuthPlugin):
                     members[memberId] = member_details
 
                 memberId = cid
-                member_details = CiviMember(cid,sid,fob,end_date,is_active)
+                member_details = CiviMember(cid,sid,str(int(fob)),end_date,is_active)
 
         if memberId is not None:
             members[memberId] = member_details
@@ -175,7 +184,7 @@ class CiviFallback(AuthPlugin):
                 except: 
                     logger.warn(f"bad fob value {v.fob_code} for user {v.contact_id}")
             db.commit()
-            logger.debug(f"Added {len(members)} new civi db entries")
+            logger.info(f"Added {len(members)}, modified {num_modified}, deleted {num_deleted}")
         except Exception as e:
             logger.error(f"Unable to refresh civi database: {e}")
         finally:
@@ -244,4 +253,5 @@ class CiviFallback(AuthPlugin):
             logger.error(f"Unable to test fob: {credential_value}, e: {e}")
         finally:
             db.close()
+
 
