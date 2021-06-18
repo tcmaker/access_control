@@ -210,10 +210,10 @@ def export():
     activity = g.dbsession.query(Activity).order_by(Activity.timestamp.desc())
 
     def generate():
-        yield f"Time,Facility,MemberId,Result\r\n"
+        yield f"Time,Facility,MemberId,Authcode,Result\r\n"
         a: Activity
         for a in activity:
-            yield f"{a.timestamp.strftime('%c')},{a.facility},{a.memberid},{a.result}\r\n"
+            yield f"{a.timestamp.strftime('%c')},{a.facility},{a.memberid},{a.credentialref},{a.result}\r\n"
 
     return Response(stream_with_context(generate()),mimetype="text/csv")
 
