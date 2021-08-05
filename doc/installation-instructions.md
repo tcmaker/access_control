@@ -65,3 +65,11 @@ mysql -h tcm-mariadb -u rdahlstrom -p
 Me: Contact Id 3870 - Robert Dahlstrom
 
 civicrm_membership where id == whatever, status_id
+
+
+tunnel via db server
+ssh -L 22444:localhost:22445 tcmadmin@tcm-web01.tcmaker.org
+connect to pi:
+ssh -p 22444 -L 8844:localhost:8443 pi@localhost
+
+

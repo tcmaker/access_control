@@ -20,16 +20,13 @@ webpanel:
   username: tcmaker
   password: hackfactory
 
-aws:
-  use_system_credentials: true
 
-  # If the above is set to false, these values should be uncommented and set
-  # When the above is true, the SQS client will search ~/.aws/ for credentials
-  #key_id: 1234567890
-  #access_key: SuPaRsEcReTkEy
-  #region: us-east-1
-  #incoming: https://url_for_incoming_queue.fifo
-  #outgoing: https://url_for_outgoing_queue.fifo
+auth:
+  tcmaker:
+    dbfile: tcmaker-membership.db
+    url: https://members.tcmaker.org/api/v1/keyfobs/
+    api_key: 1234567890abcdefg
+    refresh: 20
 
 scanners:
   # Format
