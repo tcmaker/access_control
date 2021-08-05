@@ -99,6 +99,7 @@ class CiviFallback(AuthPlugin):
         if (now - self.LastSQLRefresh).total_seconds() >= self.Refresh:
             if not self.refresh_lock.locked():
                 self.LastSQLRefresh = now
+
                 #launch the database resync on its own thread because internet timeouts make this take awhile
                 t = Thread(target=self.do_database_refresh)
                 t.start()
@@ -191,7 +192,7 @@ class CiviFallback(AuthPlugin):
                 except: 
                     logger.warning(f"bad fob value {v.fob_code} for user {v.contact_id}")
             db.commit()
-            logger.debug(f"Added {len(members)} new civi db entries")
+            logger.info(f"Added {len(members)}, modified {num_modified}, deleted {num_deleted}")
         except Exception as e:
             logger.error(f"Unable to refresh civi database: {e}")
         finally:
@@ -260,4 +261,5 @@ class CiviFallback(AuthPlugin):
             logger.error(f"Unable to test fob: {credential_value}, e: {e}")
         finally:
             db.close()
+
 

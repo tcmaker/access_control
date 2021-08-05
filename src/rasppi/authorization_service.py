@@ -19,6 +19,7 @@ logger = logging.getLogger("auth")
 class AuthorizationService:
     boards: Dict[str, ReaderBoard]
 
+
     def __init__(self, input_queue: Queue, output_queue: Queue):
         engine = create_engine(f"sqlite:///{Config.ActivityDb}")
         Session = sessionmaker(bind=engine)
@@ -32,6 +33,9 @@ class AuthorizationService:
         self._inqueue = input_queue
         self._outqueue = output_queue
         self.authModules = self.load_authorizations()
+        self.curfew_start = datetime(2020,4,13,22,0,0)
+        self.curfew_end = datetime(2020,4,13,6,0,0)
+
         self.run()
 
     def load_authorizations(self):
@@ -163,15 +167,25 @@ class AuthorizationService:
                         try:
                             (grant, member, auth) = am.on_scan(credential_type,credential_value,scanner,facility)
                             if grant:
-                                activity = Activity(memberid=member, authorization=auth,
+                                #CURFEW ENFORCING HACKJOB, REMOVE ME
+                                now = datetime.now()                                
+                                if (now > self.curfew_start and now < self.curfew_end):
+                                    activity = Activity(memberid=member,authorization="curfew",
+                                                    result="denied",
+                                                    timestamp=now,
+                                                    credentialref=credential_ref,
+                                                    facility=facility.name,
+                                                    notified=False)
+                                else:
+                                    activity = Activity(memberid=member, authorization=auth,
                                                     result="granted" if grant else "denied",
                                                     timestamp=datetime.now(),
                                                     credentialref=credential_ref,
                                                     facility=facility.name,
-                                                    notified=False)
+                                                    notified=False)                            
+                                    self.unlock(facility.board, facility.relay, facility.unlockduration, credential_value)
                                 db.add(activity)
                                 db.commit()
-                                self.unlock(facility.board, facility.relay, facility.unlockduration, credential_value)
                                 return
                         except Exception as ame:
                             logger.error(f"Failed to call auth module {am.__module__}:  {ame}")
