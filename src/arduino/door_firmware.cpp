@@ -2,6 +2,7 @@
 #define VERSION "0.03"
 
 #include <Arduino.h>
+#include <HardwareSerial.h>
 #include <WIEGAND26.h>          // Wiegand 26 reader format libary
 #include <PCATTACH.h>
 #include <Wire.h>
@@ -36,9 +37,23 @@ uint8_t reader2Pins[]={R2ZERO, R2ONE};           // Reade  2 pin definition
 
 volatile long readerBuffer[2] = { 0, 0};         // Reader buffers
 volatile int  readerCounts[2] = {0,0};
+volatile bool buzz = false;
+volatile bool buzzHigh = false;
 
 extern volatile bool bitsRead[2];// = {false, false};
 extern unsigned long firstBitMicros[2];// = {0,0};
+
+void setEchoMode(char rc);
+void helpText(char rc);
+void openRelay(char rc);
+void closeRelay(char rc);
+void deviceInfo(char rc);
+void setLed(char rc);
+void callReader1Zero();
+void callReader1One();
+void processButtonPress(int,int);
+void doCli();
+long decodeCard(long input);
 
 struct command
 {
@@ -48,6 +63,8 @@ struct command
     void (*func)(char rc);
 };
 
+
+
 #define OUTBUFFER_SIZE 50
 char outputBuffer[OUTBUFFER_SIZE];
 
@@ -56,6 +73,7 @@ command commands[] = { { '?','?',"show this help", helpText},
                        { 'i','I',"get device info", deviceInfo},
                        { 'o','O',"open relay: relay num", openRelay},
                        { 'c','C',"close relay: relay num", closeRelay},
+                       { 'l','L',"set LED: led num, 0=off, 1=on", setLed},
                        };
 
 int numCommands;
@@ -113,6 +131,14 @@ void loop() {
         snprintf(outputBuffer, 50, "DKeypadTimeout");
         Serial.println(outputBuffer);
         lastButtonPress = 0;
+    }*/
+    /*if(buzz) {
+        mcp.digitalWrite(READER1BUZ, buzzHigh ? LOW : HIGH);
+        buzzHigh = !buzzHigh;
+    }
+    else
+    {
+        mcp.digitalWrite(READER1BUZ, HIGH);
     }*/
 
     for (int reader = 0; reader < 2; reader++) {
@@ -350,7 +376,6 @@ void doCli()
         clearInputBuffer();
     }
 }
-
 void helpText(char rc)
 {
     Serial.println("Help:");
@@ -361,11 +386,31 @@ void helpText(char rc)
 }
 
 void setEchoMode(char rc) {
-    if (inputIndex != 1) {
+    //snprintf(outputBuffer, OUTBUFFER_SIZE, "II:%d,%d", inputIndex, input[1]);
+    //Serial.println(outputBuffer);
+
+    if (inputIndex != 2) {
         indicateGarbage();
     } else {
         echoMode = input[1] == '1';
         snprintf(outputBuffer, OUTBUFFER_SIZE, "E%d", echoMode ? 1 : 0);
+        Serial.println(outputBuffer);
+    }
+}
+
+void setLed(char rc)
+{
+    char doorNum = input[1] - 48;
+    bool on = input[3] == '1';
+    if (doorNum < 1 || doorNum > 4 || inputIndex != 4) {
+        indicateGarbage();
+    } else {
+        buzz = on;
+        mcp.digitalWrite(READER1GRN, on ? LOW : HIGH);
+        mcp.digitalWrite(READER2GRN, on ? LOW : HIGH);
+        //mcp.digitalWrite(READER1BUZ, on ? LOW : HIGH);
+        //mcp.digitalWrite(READER2BUZ, on ? LOW : HIGH);
+        snprintf(outputBuffer,OUTBUFFER_SIZE,"%c%d", rc,doorNum);
         Serial.println(outputBuffer);
     }
 }

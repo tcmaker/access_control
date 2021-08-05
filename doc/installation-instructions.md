@@ -1,8 +1,9 @@
 2021-01-11 Raspios Buster Lite
 Using raspi-config:
-  change pi password
-  change keyboard layout
-  configure wifi
+  * change pi password
+  * change keyboard layout
+  * change timezone 
+  * configure wifi
 
 1. apt-get update
 
