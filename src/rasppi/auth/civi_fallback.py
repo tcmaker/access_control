@@ -22,6 +22,9 @@ class CiviBridge(CiviBase):
     member_active = Column(Boolean)
     timeslot_active = Column(Boolean)
 
+    def __str__(self):
+        return f"{self.id}: {self.contact_id} - {self.fob}"
+
 class CiviMember():
     def __init__(self, contact_id, status_id, fob_code, expiration_date, is_active):
         self.contact_id = contact_id
