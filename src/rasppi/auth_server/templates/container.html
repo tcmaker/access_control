@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Stuff!</title>
+</head>
+<body>
+<h1>This is awesome</h1>
+<div id="replaceme">
+    <p>Here is some contents</p>
+</div>
+
+<script src="{{  url_for('static',filename='jquery.min.js') }}"></script>
+<script type="application/javascript">
+    var isActive = true;
+    $().ready(function () {
+        pollServer();
+    })
+
+    function pollServer()
+    {
+        if(isActive)
+        {
+            window.setTimeout(function() {
+                $.ajax({
+                    url: "{{  url_for('longpoll') }}",
+                    type: "GET",
+                    success: function(result) {
+                        $("#replaceme").html(result)
+                        pollServer();
+                    },
+                    error: function() {
+                        pollServer();
+                    }})
+            },2500);
+        }
+    }
+</script>
+</body>
+</html>

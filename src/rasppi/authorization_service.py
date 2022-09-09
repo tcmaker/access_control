@@ -1,14 +1,14 @@
 from configuration import Config, Facility, Scanner
 from models import DoorControllerBase, Activity#, Credential, Activity, AccessRequirement
-from hardware import ReaderBoard, query_devices
+from door_hal.reader_board import ReaderBoard
 import plugins
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import create_engine
 
-from typing import Dict, Iterable
+from typing import Dict
 import logging
 
-from threading import Thread, Lock
+from threading import Lock
 from multiprocessing import Queue
 from queue import Empty
 

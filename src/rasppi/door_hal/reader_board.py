@@ -1,14 +1,15 @@
 from enum import Enum
 import logging
 from typing import Dict, List, Tuple
+from time import perf_counter
 
 import pyftdi
 from pyftdi.usbtools import UsbDeviceDescriptor
-from threading import Thread, Lock, Event, get_ident
+from threading import Thread, Lock, Event
 from time import sleep, time
 from pyftdi.ftdi import Ftdi
 
-logger = logging.getLogger("Hardware")
+logger = logging.getLogger(__name__)
 #logger.setLevel(logging.DEBUG)
 
 
@@ -30,43 +31,6 @@ class ParserState(Enum):
     FOUND_NEWLINE = 4
 
 
-def query_devices(ignored_devices):
-    if ignored_devices is not None and not hasattr(ignored_devices, '__iter__'):
-        raise ValueError("Invalid ignored devices variable")
-
-    ignored_ids = list(map(lambda d: d.device_id, ignored_devices))
-    def map_url(dev):
-        usb: UsbDeviceDescriptor = dev[0]
-        vid = usb.vid
-        pid = usb.pid
-        if vid == 0x0403:
-            vid = "ftdi"
-        if pid == 0x6001:
-            pid = "232"
-        interface = dev[1]
-        return f"ftdi://{vid}:{pid}:{usb.sn}/{interface}"
-
-    all_devices = list(map(map_url, Ftdi.list_devices()))
-
-    def not_ignored(dev):
-        return dev not in ignored_ids
-
-    if ignored_devices is None:
-        to_query = all_devices
-    else:
-        to_query = list(filter(not_ignored, all_devices))
-
-    discovered_boards = []
-    for t in to_query:
-        try:
-            qb = ReaderBoard(deviceid=t)
-            discovered_boards.append(qb.__repr__())
-            qb.shutdown()
-        except:
-            pass
-    return discovered_boards
-
-
 class ReaderBoard:
     _unlockTimeouts: Dict[int, List[LockTimeout]]
 
@@ -76,23 +40,25 @@ class ReaderBoard:
         :rtype: object
         """
         # self.input = queue.Queue(20)
+
+        self.device_id = deviceid
+        self.version = "0.00"
+        self.model = "unknown"
+
         self.packetCallback = None
         self.errorCallback = None
+
+        self.numScanners = 0
+        self.numRelays = 0
+        self.relaystatus = {}
 
         self._commandLock = Lock()
         self._packetReadEvent = Event()
         self._startedEvent = Event()
         self._stoppedEvent = Event()
         self._run = True
-        self.device_id = deviceid
         self._ftdi = Ftdi()
-        self.numScanners = 0
-        self.numRelays = 0
-        self.relaystatus = {}
-        self.version = "0.00"
-        self.model = "unknown"
         self._unlockTimeouts = {}
-
         self._parserState = ParserState.BEGIN
         self._firstChar = ' '
         self._body = bytearray()
@@ -101,16 +67,16 @@ class ReaderBoard:
         self._ftdi.open_from_url(self.device_id)
         self._ftdi.set_baudrate(57600)
 
-        self._backgroundThread = Thread(target=self.background)
+        self._backgroundThread = Thread(target=self._background)
         self._backgroundThread.start()
-        self._otherThread = Thread(target=self.lock_watch_loop)
+        self._otherThread = Thread(target=self._lock_watch_loop)
         self._otherThread.start()
 
         if not self._startedEvent.wait(3.0):
             raise RuntimeError("Unable to startup board!")
         else:
             logger.log(logging.DEBUG, "Started up, disabling echo")
-            self.send_command('e', '0')
+            self._send_command('e', '0')
 
             def get_device_info(fc, b, me):
                 if fc == 'I':
@@ -125,7 +91,7 @@ class ReaderBoard:
 
             self.packetCallback = get_device_info
             logger.info("calling getting device info")
-            self.send_command('i', '')
+            self._send_command('i', '')
             logger.info("done interrogating")
 
             self.packetCallback = None
@@ -137,7 +103,7 @@ class ReaderBoard:
             raise TimeoutError("Failed to shut down board in a timely manner")
         self._backgroundThread.join()
 
-    def background(self):
+    def _background(self):
         self._ftdi.set_dtr(False)
         sleep(0.1)
         self._ftdi.set_dtr(True)  # Reset the device
@@ -156,7 +122,7 @@ class ReaderBoard:
                     started_up = True
                     self._startedEvent.set()
                     try:
-                        self.parse_loop()
+                        self._parse_loop()
                     except pyftdi.ftdi.FtdiError as error:
                         logger.fatal(f"USB ERROR! {error}")
                         if self.errorCallback is not None:
@@ -169,7 +135,7 @@ class ReaderBoard:
         self._commandLock.release()
         logger.log(logging.DEBUG, "Done shutting down hardware interface")
 
-    def lock_watch_loop(self):
+    def _lock_watch_loop(self):
         if not self._startedEvent.wait(5000):
             logger.fatal("Didn't start up!")
         else:
@@ -183,25 +149,26 @@ class ReaderBoard:
                                 tos.remove(t)
                                 if len(tos) == 0:
                                     # close the door
-                                    self.send_command('o', str(r))
+                                    self._send_command('o', str(r))
                                     self.relaystatus[r] = False
                     elif self.relaystatus[r]:
-                        self.send_command('o', str(r))
+                        self._send_command('o', str(r))
                         self.relaystatus[r] = False
                 sleep(0.25)
 
-    def parse_loop(self):
+    def _parse_loop(self):
         totaltime = 0
         while self._run:
             sleep(0.1)
             totaltime += 0.1
             in_bytes = self._ftdi.read_data_bytes(50)
-            self.parse(in_bytes)
+
+            self._parse(in_bytes)
 
             # Check out open/close queue
         self._stoppedEvent.set()
 
-    def parse(self, in_bytes):
+    def _parse(self, in_bytes):
         if len(in_bytes) > 0:
             for b in in_bytes:
                 c = chr(b)
@@ -224,24 +191,31 @@ class ReaderBoard:
                         logger.log(logging.DEBUG, f"Read a packet: {self._firstChar}, {self._body}")
                         if self.packetCallback is not None:
                             try:
-                                self.packetCallback(self._firstChar, self._body.decode("utf-8"), self.device_id)
+                                t = Thread(target=self.packetCallback,args=(self._firstChar, self._body.decode("utf-8"), self.device_id))
+                                t.start()
+                                #self.packetCallback(self._firstChar, self._body.decode("utf-8"), self.device_id)
                             except Exception as e:
                                 logger.log(logging.FATAL, f"Failed calling packet callback: {e}")
                         if not (self._firstChar == 'e' and len(self._body) == 1 and self._body[0] == ord('0')):
                             self._packetReadEvent.set()
 
-    def send_command(self, c: str, data: str):
+    def _send_command(self, c: str, data: str):
         if len(c) != 1 or not c.isalpha():
             raise ValueError("c must be a single character!")
 
         message = f"{c}{data}\r"  # we won't add a \n, serial comms don't do that normally
         self._packetReadEvent.clear()
         d = message.encode("utf-8")
+        start = perf_counter()
         if self._commandLock.acquire(timeout=1.0):
+            commandlock = perf_counter()
             if self._run:
                 self._ftdi.write_data(d)
+                wroteftdi = perf_counter()
                 if self._packetReadEvent.wait(3.0):
+                    readfti = perf_counter()
                     self._commandLock.release()
+                    print(f"Commandlock: {commandlock - start}, wrote: {wroteftdi - commandlock}, read: {readfti - wroteftdi}")
                     return self._body
                 else:
                     logger.log(logging.ERROR, "Failure to get response from board, it's down?")
@@ -256,13 +230,21 @@ class ReaderBoard:
     def __repr__(self):
         return f"{self.device_id} - {self.model} v{self.version}: {self.numScanners} scanners, {self.numRelays} relays"
 
+    def json(self):
+        return {"model": f"{self.model} v{self.version}",
+                "device_id" : self.device_id,
+                "scanners": self.numScanners,
+                "relays": self.numRelays}
+
     def Unlock(self, relay, duration, credential=None):
         if relay > self.numRelays:
             logger.error(f"Attempt to activate a relay board {self.device_id} doesn't have. {relay}")
             return
         now = time()
         self._unlockTimeouts[relay].append(LockTimeout(now + duration, credential))
-        self.send_command('c', str(relay))
+        s = perf_counter()
+        self._send_command('c', str(relay))
+        print(f"Second command: {perf_counter() -s} seconds")
         self.relaystatus[relay] = True
 
     def Lock(self, relay, credential=None):
@@ -279,6 +261,33 @@ class ReaderBoard:
                     # At this point the timeout should be cleared
                     # during the watch loop
 
+def start_devices() -> Dict[str, ReaderBoard]:
+
+    def map_url(dev):
+        usb: UsbDeviceDescriptor = dev[0]
+        vid = usb.vid
+        pid = usb.pid
+        if vid == 0x0403:
+            vid = "ftdi"
+        if pid == 0x6001:
+            pid = "232"
+        interface = dev[1]
+        return f"ftdi://{vid}:{pid}:{usb.sn}/{interface}"
+
+    all_devices = list(map(map_url, Ftdi.list_devices()))
+
+
+    to_query = all_devices
+
+    discovered_boards = {}
+    for t in to_query:
+        try:
+            qb = ReaderBoard(deviceid=t)
+            discovered_boards[qb.device_id] = qb
+        except:
+            logger.debug("Unable to open device",exc_info=True)
+            pass
+    return discovered_boards
 
 if __name__ == '__main__':
     '''This is here to support testing'''
@@ -327,3 +336,5 @@ if __name__ == '__main__':
         #    sleep(0.5)
     else:
         parser.print_help()
+
+
