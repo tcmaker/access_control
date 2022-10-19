@@ -21,18 +21,18 @@
     {
         if(isActive)
         {
-            window.setTimeout(function() {
                 $.ajax({
                     url: "{{  url_for('longpoll') }}",
                     type: "GET",
                     success: function(result) {
+                        console.log(result)
                         $("#replaceme").html(result)
                         pollServer();
                     },
                     error: function() {
                         pollServer();
-                    }})
-            },2500);
+                    },
+                    timeout: 60000})
         }
     }
 </script>

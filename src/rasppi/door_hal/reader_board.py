@@ -208,14 +208,12 @@ class ReaderBoard:
         d = message.encode("utf-8")
         start = perf_counter()
         if self._commandLock.acquire(timeout=1.0):
-            commandlock = perf_counter()
             if self._run:
                 self._ftdi.write_data(d)
                 wroteftdi = perf_counter()
                 if self._packetReadEvent.wait(3.0):
                     readfti = perf_counter()
                     self._commandLock.release()
-                    print(f"Commandlock: {commandlock - start}, wrote: {wroteftdi - commandlock}, read: {readfti - wroteftdi}")
                     return self._body
                 else:
                     logger.log(logging.ERROR, "Failure to get response from board, it's down?")
@@ -329,11 +327,6 @@ if __name__ == '__main__':
 
         reader.packetCallback = callback
 
-        # for i in range(3):
-        #    reader.sendCommand('c','1')
-        #    sleep(0.5)
-        #    reader.sendCommand('o', '1')
-        #    sleep(0.5)
     else:
         parser.print_help()
 

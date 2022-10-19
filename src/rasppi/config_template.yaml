@@ -15,7 +15,7 @@ system:
 webpanel:
   # Use random value here
   # import os; print(os.urandom(16)) works to generate it
-  secretkey: FHiKD45Ru72ftpXeWkLTzfbJwH
+  secretkey: abcdefghijklmnopqrstuvwxyz
   # Change me
   username: tcmaker
   password: hackfactory

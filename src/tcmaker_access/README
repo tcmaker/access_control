@@ -1,0 +1,4 @@
+This coordinates the various hardware that provides access control to the shop and tools.
+
+This authenticates against WildApricot and clubhouse? and periodically updates the devices, also
+used for on-demand authentication checks.

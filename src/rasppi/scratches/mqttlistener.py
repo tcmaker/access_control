@@ -18,7 +18,7 @@ if __name__ == "__main__":
     client.on_message = on_scan
     client.on_subscribe = on_subscribe
 
-    client.subscribe("scan")
+    client.subscribe("activity")
 
     client.loop_forever()
 
