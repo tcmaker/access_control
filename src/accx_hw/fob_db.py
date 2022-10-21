@@ -1,4 +1,6 @@
 import logging
+import pathlib
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import Table, Column, Integer, String, Date, Boolean, ForeignKey
@@ -9,43 +11,57 @@ TcmakerBase = declarative_base()
 
 logger = logging.getLogger("fob_db")
 
-class FobDb(TcmakerBase):
+ADMIN = "Admin"
+ALWAYS = "Always"
+DISABLED = "Disabled"
+EXPIRED = "Expired"
+DENIED = "Denied"
+
+
+class __FobDb__(TcmakerBase):
     __tablename__ = 'fobs'
 
     id = Column(Integer, primary_key=True)
     person = Column(String)
     code = Column(String)
     expiration = Column(Date)
+    access_type = Column(Integer)
 
 class FobDatabase():
     def __init__(self, dbfile):
-        self.engine = create_engine(f"sqlite:///{dbfile}")
+        absfile = str(dbfile) if dbfile is pathlib.Path else dbfile
+        self.engine = create_engine(f"sqlite:///{absfile}")
         self.Session = sessionmaker(bind=self.engine)
         # session = Session()
         self.ScopedSession = scoped_session(self.Session)
         TcmakerBase.metadata.create_all(self.engine)
 
-    def is_active(self, code: String) -> (bool, String, datetime): # yes/no, who, their expiration
+    def is_active(self, code: str) -> (bool, str, datetime): # yes/no, who, their expiration
         db = self.ScopedSession()
         try:
-            user : list[FobDb] = db.query(FobDb).filter(FobDb.code == code).all()
+            user : list[__FobDb__] = db.query(__FobDb__).filter(__FobDb__.code == code).all()
             if len(user) == 0:
-                return (False, None, None)
+                return (DENIED, None)
             if len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {code}")
-            user : FobDb = user[0]
-            active = user.expiration >= date.today()
-            return (active,user.person,user.expiration)
+            user : __FobDb__ = user[0]
+            if user.access_type == 99:
+                result = ADMIN
+            elif user.access_type == 0:
+                result = DISABLED
+            else:
+                result = ALWAYS if user.expiration >= date.today() else EXPIRED
+            return (result, user.person)
         except Exception as e:
             logger.error(f"Unable to test code: {code}, e: {e}")
-            return (False, None, None)
+            return (False, None)
         finally:
             db.close()
 
     def remove_all(self):
         db = self.ScopedSession()
         try:
-            db.query(FobDb).delete()
+            db.query(__FobDb__).delete()
             db.commit()
         except Exception as e:
             logger.error(f"Unable to remove all entries! e: {e}")
@@ -56,7 +72,7 @@ class FobDatabase():
     def remove(self, code):
         db = self.ScopedSession()
         try:
-            user: list[FobDb] = db.query(FobDb).filter(FobDb.code == code).all()
+            user: list[__FobDb__] = db.query(__FobDb__).filter(__FobDb__.code == code).all()
             num_to_delete = len(user)
             for u in user:
                 db.delete(u)
@@ -68,23 +84,31 @@ class FobDatabase():
         finally:
             db.close()
 
-    def add(self, code: String, person: String, expiration: date):
+    def all(self) -> list[__FobDb__]:
         db = self.ScopedSession()
         try:
-            user: list[FobDb] = db.query(FobDb).filter(FobDb.code == code).all()
+            users: list[__FobDb__] = db.query(__FobDb__).order_by(__FobDb__.person).all()
+            return users
+        finally:
+            db.close()
+
+    def add(self, code: String, person: String, expiration: date, access_type: int):
+        db = self.ScopedSession()
+        try:
+            user: list[__FobDb__] = db.query(__FobDb__).filter(__FobDb__.code == code).all()
             if len(user) == 0:
                 # new entry
-                newCode = FobDb(person=person, code=code,expiration=expiration)
+                newCode = __FobDb__(person=person, code=code,expiration=expiration, access_type=access_type)
                 db.add(newCode)
             elif len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {code}")
             for fobuser in user:
-                fobuser = user[0]
                 if fobuser.person != person:
                     logger.warning(f"Duplicate fob being written! {code} already exists for {fobuser.person}, new owner is {person}")
                     fobuser.person = person
                 fobuser.code = code
                 fobuser.expiration = expiration
+                fobuser.access_type = access_type
             db.commit()
             return True
         except Exception as e:

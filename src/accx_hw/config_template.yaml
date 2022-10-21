@@ -3,7 +3,7 @@ accx_hw:
   fob_database: fobs.db #defaults to fobs.db
   board: "ftdi://ftdi:232:AM01QCWE/1"
   name: front_door
-  topicname: esp-rfid
+  mqtt_topic: esp-rfid
   logfile: accx_log.log
 
 

@@ -1,13 +1,15 @@
+tcmaker_access:
+  broker: localhost
+  topicname: esp-rfid
 
-auth:
+  auth: #clubhouse for now, wild apricot later
+    url: https://members.tcmaker.org/api/v1/keyfobs/
+    api_key: $CLUBHOUSE
+    refresh: 20
 
+  facilities:
+    front_door:
+      id: front_door
 
-facilities:
-  front_door:
-    board: *accxboard
-    scanner: frontscanner
-    relay: 1
-
-  side_door:
 
 

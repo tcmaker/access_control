@@ -7,21 +7,21 @@ def on_scan(client, userdata, message: mqtt.MQTTMessage):
 def on_subscribe(client, userdata, mid, granted_qos):
     print("Subscribed", client, userdata, mid, granted_qos)
 
+def on_connect(client : mqtt.Client, userdata, flags, rc):
+    client.subscribe("activity")
+    client.subscribe("esp-rfid")
+
 if __name__ == "__main__":
     #broker = "test.mosquitto.org"
     broker = "localhost"
     client = mqtt.Client("Thing1")
-    client.connect(broker, 1883)
-
-
-
+    client.on_connect = on_connect
+    client.connect(broker, 1883)# 14443)# 1883)
     client.on_message = on_scan
     client.on_subscribe = on_subscribe
 
-    client.subscribe("activity")
 
     client.loop_forever()
-
 
     #time.sleep(30)
     #client.loop_stop()

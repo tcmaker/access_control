@@ -89,9 +89,9 @@ class ReaderBoard:
                         self.relaystatus[a] = False
 
             self.packetCallback = get_device_info
-            logger.info("calling getting device info")
+            logger.debug("calling getting device info")
             self._send_command('i', '')
-            logger.info("done interrogating")
+            logger.debug("done interrogating")
 
             self.packetCallback = None
 

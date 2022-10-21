@@ -7,7 +7,8 @@ door_display:
   broker: localhost
   doorname: front_door
   topicname: esp-rfid
+  
   # How long to leave stuff on the screen after a scan.
-  dwell_time: 30
+  dwell_time: 15
 
   logfile: display.log

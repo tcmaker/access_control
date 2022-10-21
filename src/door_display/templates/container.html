@@ -3,38 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <title>Stuff!</title>
+    <style>
+        @font-face {
+            font-family: 'League Spartan';
+            src:
+                url("{{ url_for('static', filename='leaguespartan-bold.eot')}}");
+            src:
+                url("{{ url_for('static', filename='leaguespartan-bold.woff')}}") format("woff"),
+                url("{{ url_for('static', filename='leaguespartan-bold.woff2')}}") format("woff2"),
+                url("{{ url_for('static', filename='leaguespartan-bold.eot#iefix')}}") format("embedded-opentype"),
+                url("{{ url_for('static', filename='leaguespartan-bold.ttf')}}") format("truetype"),
+                url("{{ url_for('static', filename='leaguespartan-bold.svg#league_spartanbold')}}") format("svg");
+
+            font-weight: bold;
+            font-style: normal; }
+
+        html, body {
+    font-size: 120%;
+        font-family: "League Spartan", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+        /*font-family-sans-serif: "Helvetica Neue", Arial, Helvetica, Roboto, sans-serif;
+        font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;*/
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    }
+
+    #container {
+    position: absolute;
+    /*display: -webkit-flex;
+    display: flex;
+    -webkit-flex-direction: column;
+    flex-direction: column;*/
+    top: 20vmin;
+    bottom: 5vmin;
+    left: 5vmin;
+    right: 5vmin;
+    background-color: #eee;
+    padding: 15px;
+    }
+
+    .header{
+    position: absolute;
+    top: 5vmin;
+    left: 5vmin;
+    right: 5vmin;
+    height: 15vmin;
+    padding: 3vmin;
+    background-color: cyan;
+    }
+
+    .inner {
+    position: absolute;
+    top: 5vmin;
+    left: 5vmin;
+    right: 5vmin;
+    bottom: 5vmin;
+    padding: 5vmin;
+    text-align: center;
+    border: 2px solid #84a471;
+    background-color: #d2ffbc;
+    border-radius: 5vmin;
+    }
+     .clock {
+            position: absolute;
+            top: 5vmin;
+            right: 5vmin;
+            /*transform: translateX(-50%) translateY(-50%);*/
+            color: black;
+            /*font-size: 60px;*/
+            font-family: "League Spartan";
+            letter-spacing: 7px;
+        }
+
+</style>
 </head>
 <body>
-<h1>This is awesome</h1>
-<div id="replaceme">
-    <p>Here is some contents</p>
+<div class="header">
+<img src="{{ url_for('static',filename='logo-red-text.svg') }}"
+    style="height: 9vmin;" alt="TC Maker Logo" />
+    <div id="clockdisplay" class="clock" onload="showTime()">
+        <div id="timedisplay"></div>
+        <div id="seconddisplay"></div>
+        <div id="datedisplay"></div>
+    </div>
+    </div>
+<div id="container">
+    {% include 'expired.html' %}
 </div>
+
 
 <script src="{{  url_for('static',filename='jquery.min.js') }}"></script>
 <script type="application/javascript">
-    var isActive = true;
-    $().ready(function () {
-        pollServer();
-    })
+var isActive = true;
+$().ready(function () {
+    pollServer();
+})
 
-    function pollServer()
+function pollServer()
+{
+    if(isActive)
     {
-        if(isActive)
-        {
-                $.ajax({
-                    url: "{{  url_for('longpoll') }}",
-                    type: "GET",
-                    success: function(result) {
-                        console.log(result)
-                        $("#replaceme").html(result)
-                        pollServer();
-                    },
-                    error: function() {
-                        pollServer();
-                    },
-                    timeout: 60000})
-        }
+            $.ajax({
+                url: "{{  url_for('longpoll') }}",
+                type: "GET",
+                success: function(result) {
+                    console.log(result)
+                    $("#container").html(result)
+                    pollServer();
+                },
+                error: function() {
+                    pollServer();
+                },
+                timeout: 60000})
     }
+}
+
+function showTime(){
+    var date = new Date();
+    var h = date.getHours(); // 0 - 23
+    var m = date.getMinutes(); // 0 - 59
+    var s = date.getSeconds(); // 0 - 59
+    var d = date.getDay()
+    var session = "AM";
+
+    /*if(h == 0){
+        h = 12;
+    }
+
+    if(h > 12){
+        h = h - 12;
+        session = "PM";
+    }*/
+
+    h = (h < 10) ? "0" + h : h;
+    m = (m < 10) ? "0" + m : m;
+    s = (s < 10) ? "0" + s : s;
+
+    //var time = h + ":" + m + ":" + s + " " + session;
+    var time = h + ":" + m;
+    var seconds = s;
+    var date = date.toLocaleDateString("en-US", {weekday:'long', month: 'long', day: 'numeric'})
+
+    document.getElementById("timedisplay").innerText = time;
+    document.getElementById("timedisplay").textContent = time;
+
+    document.getElementById("seconddisplay").innerText = seconds;
+    document.getElementById("seconddisplay").textContent = seconds;
+
+    document.getElementById("datedisplay").innerText = date;
+    document.getElementById("datedisplay").textContent = date;
+
+    setTimeout(showTime, 1000);
+
+}
+
+showTime();
+
 </script>
 </body>
 </html>
