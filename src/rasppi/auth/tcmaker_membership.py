@@ -20,6 +20,7 @@ class TcmakerMembershipDb(TcmakerBase):
     code = Column(String)
     member_active = Column(Boolean)
     expiration = Column(Date)
+    fobuuid = Column(String)
 
 class TcmakerMemberRest():
     def __init__(self, person, fob_code, expiration_date, is_active):
@@ -29,6 +30,9 @@ class TcmakerMemberRest():
         self.is_active = is_active
 
 class TcmakerMembership(AuthPlugin):
+    def __init__(self):
+        self._mysqlFailure = False
+    
     def get_configuration_schema(self) -> (str,dict,bool):
         """
 
@@ -110,8 +114,8 @@ class TcmakerMembership(AuthPlugin):
     def refresh_membership(self):
         logger.debug("Refreshing membership db")
 
-        fobs = list(self.list_keyfobs(self.Url))
-        print(f"fobs: {len(fobs)}")
+        #fobs = list(self.list_keyfobs(self.Url))
+        #print(f"fobs: {len(fobs)}")
 
         db = self.ScopedSession()
         num_deleted = 0
@@ -119,19 +123,26 @@ class TcmakerMembership(AuthPlugin):
         num_added = 0
         # this could all be done a lot more efficiently, but future me can deal with that
         m: TcmakerMembershipDb
-        members: dict = {m.person: m for m in db.query(TcmakerMembershipDb).order_by(TcmakerMembershipDb.person).all() }
+        members: dict = {(m.person, m.fobuuid): m for m in db.query(TcmakerMembershipDb).order_by(TcmakerMembershipDb.person).all() }
         #members: list[TcmakerMembershipDb] =
+        current_fob = "None"
         try:
             for f in self.list_keyfobs(self.Url):
+                current_fob = f
                 personuuid = f['person'].split('/')[-2]
-                is_valid = bool(f['is_membership_valid'])
-                code = f"f:{f['code']}"
+                fobuuid = f['url'].split('/')[-2]
+                is_valid = bool(f['is_active'])
+                try:
+                    code = f"f:{int(f['code'])}"
+                except:
+                    code = "0000000"
                 mvt = f['membership_valid_through']
-                expiration = datetime.fromisoformat(str(mvt)) if type(mvt) == String else datetime.min
+                expiration = datetime.fromisoformat(str(mvt)) if type(mvt) == str else datetime.min
                 #member_fobs[personuuid] = TcmakerMemberRest(personuuid,code,expiration,is_valid)
-                if personuuid in members:
-                    mem: TcmakerMembershipDb = members[personuuid]
-                    members.pop(personuuid) #take them out of the list queried, then whatever remains gets deleted
+                idpair = (personuuid, fobuuid)
+                if idpair in members:
+                    mem: TcmakerMembershipDb = members[idpair]
+                    members.pop(idpair)
                     #see if we should update this one
                     if mem.member_active != is_valid or mem.code != code or mem.expiration != expiration:
                         mem.member_active = is_valid
@@ -139,17 +150,18 @@ class TcmakerMembership(AuthPlugin):
                         mem.expiration = expiration
                         num_modified += 1
                 else: #they're new!
-                    newMember = TcmakerMembershipDb(person=personuuid,code=code,member_active=is_valid,expiration=expiration)
+                    newMember = TcmakerMembershipDb(person=personuuid,code=code,member_active=is_valid,expiration=expiration, fobuuid=fobuuid)
                     db.add(newMember)
                     num_added += 1
-            for m in members:
+            for m in members.values():
+                current_fob = m
                 db.delete(m)
                 num_deleted += 1
                 pass
             db.commit()
 
         except Exception as e:
-            logger.error(f"Unable to refresh civi database: {e}")
+            logger.error(f"Unable to refresh civi database: {e}, failed on {current_fob}")
         finally:
             db.close()
             logger.debug(f"Added {num_added}, modified {num_modified}, deleted {num_deleted}")
@@ -178,7 +190,7 @@ if __name__ == "__main__":
     auth = TcmakerMembership()
     auth.read_configuration({"dbfile": "testtcmembership.db",
                              "url":"https://members.tcmaker.org/api/v1/keyfobs/",
-                             "api_key": "e1109dab5ebca5a9ce33227b162b6c002feaafa8"})
+                             "api_key": "blah"})
     auth.on_load()
     auth.refresh_database()
 
