@@ -161,7 +161,7 @@ class TcmakerMembership(AuthPlugin):
             db.commit()
 
         except Exception as e:
-            logger.error(f"Unable to refresh civi database: {e}, failed on {current_fob}")
+            logger.error(f"Unable to refresh tcmaker database: {e}, failed on {current_fob}")
         finally:
             db.close()
             logger.debug(f"Added {num_added}, modified {num_modified}, deleted {num_deleted}")
