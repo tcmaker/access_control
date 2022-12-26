@@ -47,7 +47,11 @@
     <tr {{ 'class=table-danger' if a.result == "denied" }}>
     <td>{{ a.timestamp.strftime("%a %b %d %I:%M:%S %p %Y") }}</td>
     <td>{{ a.facility }}</td>
-    <td>{% if a.authorization == 'tcmembership' %}<a href="https://members.tcmaker.org/api/v1/persons/{{a.memberid}}/">{{a.memberid}}</a>{% else %}{{ a.memberid }}{% endif %}</td>
+    <td>{% if a.authorization.startswith('tcmembership') %}
+        <a href="https://members.tcmaker.org/api/v1/persons/{{a.memberid}}/">{{a.memberid}}</a>
+        {% elif a.authorization.startswith('wa') %}
+        <a href="https://wa.tcmaker.org/admin/contacts/details/?contactId={{a.memberid}}/">{{a.memberid}}</a>
+        {% else %}{{ a.memberid }}{% endif %}</td>
         <td>{{ a.credentialref }}</td>
     <td>{{ a.authorization }}</td>
         <td>{{ a.result }}</td>

@@ -7,7 +7,7 @@ from sqlalchemy import Table, Column, Integer, String, Date, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 import requests
-from aws_wrapper import read_queue as read_aws_queue
+
 TcmakerBase = declarative_base()
 
 logger = logging.getLogger("tcmaker_membership")
@@ -166,8 +166,13 @@ class TcmakerMembership(AuthPlugin):
             db.close()
             logger.debug(f"Added {num_added}, modified {num_modified}, deleted {num_deleted}")
 
+    # denial types
+    # Fob Not Recognized
+    # Membership Not Enabled
+    # Membership Expired
+
     #:rtype: (bool: grant or not, str: the member id, str: the authorization type)
-    def on_scan(self, credential_type, credential_value, scanner, facility) -> (bool, str, str):
+    def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str):
         if credential_type != "fob": #maybe
             return (False, None, None)
 
@@ -176,7 +181,7 @@ class TcmakerMembership(AuthPlugin):
         try:
             user : list[TcmakerMembershipDb] = db.query(TcmakerMembershipDb).filter(TcmakerMembershipDb.code == credential_string).all()
             if len(user) == 0:
-                return (False, None, None)
+                return (False, None, "tcmembership:unknown_fob")
             if len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {credential_string}")
             user : TcmakerMembershipDb = user[0]

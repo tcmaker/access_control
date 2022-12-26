@@ -18,7 +18,7 @@ class AuthPlugin(object):
         pass
 
 
-    def on_scan(self, credential_type, credential_value, scanner, facility) -> (bool, str, str):
+    def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str):
         """
         :rtype: (bool: grant or not,str: the member id, str: the authorization guid)
         """

@@ -162,13 +162,13 @@ class AuthorizationService:
                 credential_ref = f'{credential_type}:{credential_value}'
                 (facility, scanner) = self.find_facility(device_id, scanner_index)
                 if facility is not None:
+                    now = datetime.now()
                     #attempt to find an authorization for the user
                     for am in self.authModules:
                         try:
-                            (grant, member, auth) = am.on_scan(credential_type,credential_value,scanner,facility)
+                            (grant, member, auth) = am.on_scan(credential_type,credential_value,scanner,facility, now)
                             if grant:
                                 #CURFEW ENFORCING HACKJOB, REMOVE ME
-                                now = datetime.now()                                
                                 if (now > self.curfew_start and now < self.curfew_end):
                                     activity = Activity(memberid=member,authorization="curfew",
                                                     result="denied",
