@@ -2,7 +2,7 @@ import base64
 import time
 import traceback
 
-from auth.auth_plugin import AuthPlugin
+from auth_plugin import AuthPlugin
 from datetime import date, datetime
 from threading import Lock, Thread, Event
 from sqlalchemy import create_engine
@@ -301,6 +301,7 @@ class WildApricotAuth(AuthPlugin):
             db.close()
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     from os import environ
     auth = WildApricotAuth()
     if not environ.get("WA_KEY",False):

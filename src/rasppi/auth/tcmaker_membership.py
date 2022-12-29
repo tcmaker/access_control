@@ -1,6 +1,7 @@
-from auth.auth_plugin import AuthPlugin
+from auth_plugin import AuthPlugin
 from datetime import date, datetime
 from threading import Lock, Thread
+from os import environ
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import Table, Column, Integer, String, Date, Boolean, ForeignKey
@@ -192,11 +193,17 @@ class TcmakerMembership(AuthPlugin):
             db.close()
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    if not environ.get("CLUBHOUSE_KEY",False):
+        print("You need to set the clubhouse api key!")
+        exit(1)
+
+
     auth = TcmakerMembership()
     auth.read_configuration({"dbfile": "testtcmembership.db",
                              "url":"https://members.tcmaker.org/api/v1/keyfobs/",
-                             "api_key": "blah"})
+                             "api_key": environ.get("CLUBHOUSE_KEY")})
     auth.on_load()
     auth.refresh_database()
 
-    auth.on_scan("fob","0010671635","frontdoor","building")
+    #auth.on_scan("fob","0010671635","frontdoor","building")
