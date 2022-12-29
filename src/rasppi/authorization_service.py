@@ -47,7 +47,7 @@ class AuthorizationService:
                 ap.on_load()
             except Exception as ee:
                 logger.error(f"failed to configure {ap}, exception: {ee}")
-        return auth_plugins
+        return sorted(auth_plugins, key=lambda ap: ap.priority())
 
     def reload_boards(self):
         self.boardLock.acquire()
@@ -190,7 +190,7 @@ class AuthorizationService:
                         except Exception as ame:
                             logger.error(f"Failed to call auth module {am.__module__}:  {ame}")
                 # no credential matched, or no valid facility, user is denied
-                activity = Activity(memberid="", authorization="", credentialref=credential_ref,
+                activity = Activity(memberid="", authorization=auth, credentialref=credential_ref,
                                     result="denied", timestamp=datetime.now(),
                                     facility=facility.name if facility is not None else None,
                                     notified=False)

@@ -47,6 +47,10 @@ class WildApricotAuth(AuthPlugin):
         self.refresh_done_event = Event()
         self.on_demand_auth_event = Event()
     
+
+    def priority(self):
+        return 2
+
     def get_configuration_schema(self) -> (str,dict,bool):
         """
 

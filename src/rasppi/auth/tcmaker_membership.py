@@ -34,6 +34,9 @@ class TcmakerMembership(AuthPlugin):
     def __init__(self):
         self._mysqlFailure = False
     
+    def priority(self):
+        return 1
+
     def get_configuration_schema(self) -> (str,dict,bool):
         """
 
