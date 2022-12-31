@@ -4,6 +4,8 @@ from hardware import ReaderBoard, query_devices
 import plugins
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy import create_engine
+import paho.mqtt.client as mqtt
+from json import dumps
 
 from typing import Dict, Iterable
 import logging
@@ -196,11 +198,43 @@ class AuthorizationService:
                                     notified=False)
                 db.add(activity)
                 db.commit()
+                t = Thread(target=self.notify_mqtt,args=[activity])
+                t.start()
         finally:
             db.close()
             self.trigger_notify()
 
+    def notify_mqtt(self, activity: Activity):
+        try:
+            access = "Denied" # unknown fobs end up with this default value
+            if activity.result == "granted":
+                access = "Always"
+            else:
+                if activity.authorization.startswith("wildapricot"):
+                    reason = activity.authorization.split(":")[1]
+                    if reason == "expired":
+                        access = "Expired"
+                    elif reason == "not_enabled" or reason == "not_active":
+                        access = "Disabled"
+                if activity.authorization.startswith("tcmembership"):
+                    reason = activity.authorization.split(":")[1]
+                    if reason == "expired":
+                        access = "Expired"
 
-
+            client = mqtt.Client()
+            client.connect(Config.mqtt_broker,Config.mqtt_port)
+            client.publish(Config.mqtt_topic,dumps({
+                                    "type":"access",
+                                    "time": activity.timestamp.timestamp(),
+                                    "isKnown": "True" if access != "Denied" else "False",
+                                    "access":access,
+                                    "username":activity.memberid,
+                                    "uid":activity.credentialref,
+                                    "hostname":activity.facility
+                            }))
+            client.disconnect()
+        except Exception as e:
+            logger.error(f"Failed to signal MQTT message:  {e}")
+            pass
 
 

@@ -33,7 +33,7 @@ class TcmakerMembershipDb(TcmakerBase):
         if self.member_status != "Active":
             return (False, self.person, "wildapricot:not_active")
         if self.expiration < now_time:
-            return (False, self.person, "wildapricot:past_renewal")
+            return (False, self.person, "wildapricot:expired")
         return (True, self.person, "wildapricot:granted")
 
     @staticmethod
@@ -277,7 +277,7 @@ class WildApricotAuth(AuthPlugin):
     #:rtype: (bool: grant or not, str: the member id, str: the authorization type)
     def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str):
         if credential_type != "fob": #maybe
-            return (False, None, None)
+            return (False, None, "wildapricot:unknown_fob")
 
         credential_string = f"f:{int(credential_value)}"
         db = self.ScopedSession()

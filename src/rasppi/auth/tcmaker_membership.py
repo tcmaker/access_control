@@ -178,7 +178,7 @@ class TcmakerMembership(AuthPlugin):
     #:rtype: (bool: grant or not, str: the member id, str: the authorization type)
     def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str):
         if credential_type != "fob": #maybe
-            return (False, None, None)
+            return (False, None, "tcmembership:unknown_fob")
 
         credential_string = f"f:{credential_value}"
         db = self.ScopedSession()
@@ -189,7 +189,10 @@ class TcmakerMembership(AuthPlugin):
             if len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {credential_string}")
             user : TcmakerMembershipDb = user[0]
-            return (user.member_active,user.person,"tcmembership")
+            if user.member_active:
+                return (user.member_active,user.person,"tcmembership:granted")
+            else:
+                return (user.member_active, user.person, "tcmembership:expired")
         except Exception as e:
             logger.error(f"Unable to test fob: {credential_value}, e: {e}")
         finally:

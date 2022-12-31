@@ -6,8 +6,6 @@ NUM_MISMATCH=0
 for code in `sqlite3 clubhouse.db "select code from members order by code;"`;
 do
 
-
-
   NUM=$(sqlite3 testtcmembership.db "select count(*) from members where code = '${code}';")
   if (( $NUM > 1 )); then
     echo "Ignoring duplicate fob entry $code in membership"
@@ -58,6 +56,11 @@ do
     #echo mismatch on code $code, ch is $TCACTIVE, wa is $WAACTIVE
     let NUM_MISMATCH++
   fi
+
+  if [[ $WAACTIVE == "True" ]] && [[ $TCACTIVE == "False" ]]; then
+    echo $code is true in WA, false in TC
+  fi
+
   #echo CODE: $code
 done
 
