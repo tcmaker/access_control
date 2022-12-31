@@ -2,7 +2,7 @@ import base64
 import time
 import traceback
 
-from auth_plugin import AuthPlugin
+from auth.auth_plugin import AuthPlugin
 from datetime import date, datetime
 from threading import Lock, Thread, Event
 from sqlalchemy import create_engine
@@ -46,6 +46,7 @@ class WildApricotAuth(AuthPlugin):
         self._mysqlFailure = False
         self.refresh_done_event = Event()
         self.on_demand_auth_event = Event()
+        self.on_demand_result = None
     
 
     def priority(self):
@@ -65,7 +66,7 @@ class WildApricotAuth(AuthPlugin):
                 "refresh": {"type" : "integer"},
                 "__line__": {},
             },
-            "required" : ["dbfile","url","api_key"]
+            "required" : ["dbfile","api_key"]
         },True)
 
     def read_configuration(self, config):

@@ -190,7 +190,7 @@ class AuthorizationService:
                         except Exception as ame:
                             logger.error(f"Failed to call auth module {am.__module__}:  {ame}")
                 # no credential matched, or no valid facility, user is denied
-                activity = Activity(memberid="", authorization=auth, credentialref=credential_ref,
+                activity = Activity(memberid=member, authorization=auth, credentialref=credential_ref,
                                     result="denied", timestamp=datetime.now(),
                                     facility=facility.name if facility is not None else None,
                                     notified=False)

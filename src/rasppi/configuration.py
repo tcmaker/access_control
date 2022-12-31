@@ -90,6 +90,9 @@ class Configuration():
                                                          "subject": {"type": "string"},
                                                          "smtp_user": {"type": "string"},
                                                          "smtp_pass": {"type": "string"},
+                                                         "mqtt_broker": {"type":"string"},
+                                                         "mqtt_topic" : {"type":"string"},
+                                                         "mqtt_port": {"type":"integer"},
                                                          "level": {"type": "string",
                                                                     "enum": ["critical", "fatal", "error", "warning"]},
                                                          "__line__": {},
@@ -287,6 +290,14 @@ class Configuration():
                 smtp_handler.setLevel(email_level)
                 smtp_handler.setFormatter(logging.Formatter(FORMAT))
                 logging.root.addHandler(smtp_handler)
+        except:
+            pass
+
+
+        try:
+            self.mqtt_broker = config['system']['mqtt_broker'] if 'mqtt_broker' in config['system'] else None
+            self.mqtt_topic = config['system']['mqtt_topic'] if 'mqtt_topic' in config['system'] else None
+            self.mqtt_port = config['system']['mqtt_port'] if 'mqtt_port' in config['system'] else None
         except:
             pass
 

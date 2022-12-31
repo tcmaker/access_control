@@ -49,8 +49,8 @@
     <td>{{ a.facility }}</td>
     <td>{% if a.authorization.startswith('tcmembership') %}
         <a href="https://members.tcmaker.org/api/v1/persons/{{a.memberid}}/">{{a.memberid}}</a>
-        {% elif a.authorization.startswith('wa') %}
-        <a href="https://wa.tcmaker.org/admin/contacts/details/?contactId={{a.memberid}}/">{{a.memberid}}</a>
+        {% elif a.authorization.startswith('wildapricot') %}
+	<a href="https://wa.tcmaker.org/admin/contacts/details/?contactId={{a.memberid}}">{{a.memberid}}</a>
         {% else %}{{ a.memberid }}{% endif %}</td>
         <td>{{ a.credentialref }}</td>
     <td>{{ a.authorization }}</td>

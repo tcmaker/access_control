@@ -1,4 +1,4 @@
-from auth_plugin import AuthPlugin
+from auth.auth_plugin import AuthPlugin
 from datetime import date, datetime
 from threading import Lock, Thread
 from os import environ
