@@ -200,40 +200,46 @@ class AuthorizationService:
                 db.add(activity)
                 db.commit()
         finally:
+            mqtt_payload = self.make_mqtt_payload(activity)
+            self.trigger_notify(mqtt_payload)
             db.close()
-            self.trigger_notify(activity)
 
-    def notify_mqtt(self, activity: Activity):
+
+    def make_mqtt_payload(self, activity):
+        access = "Denied"  # unknown fobs end up with this default value
+        if activity.result == "granted":
+            access = "Always"
+        else:
+            if activity.authorization.startswith("wildapricot"):
+                reason = activity.authorization.split(":")[1]
+                if reason == "expired":
+                    access = "Expired"
+                elif reason == "not_enabled" or reason == "not_active":
+                    access = "Disabled"
+            if activity.authorization.startswith("tcmembership"):
+                reason = activity.authorization.split(":")[1]
+                if reason == "expired":
+                    access = "Expired"
+
+        payload = {
+            "type": "access",
+            "time": activity.timestamp.timestamp(),
+            "isKnown": "True" if access != "Denied" else "False",
+            "access": access,
+            "username": activity.memberid,
+            "uid": activity.credentialref,
+            "hostname": activity.facility
+        }
+        return payload
+
+    def notify_mqtt(self, payload):
         if Config.mqtt_broker is None or Config.mqtt_topic is None or Config.mqtt_port is None:
             return
 
         try:
-            access = "Denied" # unknown fobs end up with this default value
-            if activity.result == "granted":
-                access = "Always"
-            else:
-                if activity.authorization.startswith("wildapricot"):
-                    reason = activity.authorization.split(":")[1]
-                    if reason == "expired":
-                        access = "Expired"
-                    elif reason == "not_enabled" or reason == "not_active":
-                        access = "Disabled"
-                if activity.authorization.startswith("tcmembership"):
-                    reason = activity.authorization.split(":")[1]
-                    if reason == "expired":
-                        access = "Expired"
-
             client = mqtt.Client()
             client.connect(Config.mqtt_broker,Config.mqtt_port)
-            client.publish(Config.mqtt_topic,dumps({
-                                    "type":"access",
-                                    "time": activity.timestamp.timestamp(),
-                                    "isKnown": "True" if access != "Denied" else "False",
-                                    "access":access,
-                                    "username":activity.memberid,
-                                    "uid":activity.credentialref,
-                                    "hostname":activity.facility
-                            }))
+            client.publish(Config.mqtt_topic,dumps(payload))
             client.disconnect()
         except Exception as e:
             logger.error(f"Failed to signal MQTT message:  {e}")
