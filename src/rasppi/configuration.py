@@ -90,15 +90,15 @@ class Configuration():
                                                          "subject": {"type": "string"},
                                                          "smtp_user": {"type": "string"},
                                                          "smtp_pass": {"type": "string"},
-                                                         "mqtt_broker": {"type":"string"},
-                                                         "mqtt_topic" : {"type":"string"},
-                                                         "mqtt_port": {"type":"integer"},
                                                          "level": {"type": "string",
                                                                     "enum": ["critical", "fatal", "error", "warning"]},
                                                          "__line__": {},
                                                            },
                                                         "required" : ["host","port","from_addr","to_addrs","subject","smtp_user","smtp_pass"]
                                                       },
+                                           "mqtt_broker": {"type": "string"},
+                                           "mqtt_topic": {"type": "string"},
+                                           "mqtt_port": {"type": "integer"},
                                            "__line__" : { },
                                        },
                                        "required" : ['activitydb','logfile']},
@@ -298,6 +298,7 @@ class Configuration():
             self.mqtt_broker = config['system']['mqtt_broker'] if 'mqtt_broker' in config['system'] else None
             self.mqtt_topic = config['system']['mqtt_topic'] if 'mqtt_topic' in config['system'] else None
             self.mqtt_port = config['system']['mqtt_port'] if 'mqtt_port' in config['system'] else None
+            logging.info(f"MQTT setup to {self.mqtt_topic} via {self.mqtt_broker}:{self.mqtt_port}")
         except:
             pass
 
