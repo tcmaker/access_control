@@ -134,10 +134,10 @@ class AuthorizationService:
     def unlock(self, board, relay, duration, credential):
         self._inqueue.put(('unlock', board, relay, duration, credential))
 
-    def trigger_notify(self):
-        pass
-        #TODO hook back up aws signaling of user access
-        #self._inqueue.put(('aws',))
+    def trigger_notify(self, activity):
+        if activity is not None:
+            t = Thread(target=self.notify_mqtt, args=[activity])
+            t.start()
 
     @staticmethod
     def find_facility(board, scanner_index):
@@ -155,6 +155,7 @@ class AuthorizationService:
 
     def on_scan(self, first_char: str, body: str, device_id: str):
         db: Session = self.ScopedSession()
+        activity = None
         try:
             if first_char == 'F' or first_char == 'P':  # keyfob
                 (code, scanner_index) = body.split(',')
@@ -198,13 +199,14 @@ class AuthorizationService:
                                     notified=False)
                 db.add(activity)
                 db.commit()
-                t = Thread(target=self.notify_mqtt,args=[activity])
-                t.start()
         finally:
             db.close()
-            self.trigger_notify()
+            self.trigger_notify(activity)
 
     def notify_mqtt(self, activity: Activity):
+        if Config.mqtt_broker is None or Config.mqtt_topic is None or Config.mqtt_port is None:
+            return
+
         try:
             access = "Denied" # unknown fobs end up with this default value
             if activity.result == "granted":
@@ -235,6 +237,3 @@ class AuthorizationService:
             client.disconnect()
         except Exception as e:
             logger.error(f"Failed to signal MQTT message:  {e}")
-            pass
-
-
