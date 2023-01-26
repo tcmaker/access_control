@@ -135,7 +135,7 @@ class TcmakerMembership(AuthPlugin):
                 current_fob = f
                 personuuid = f['person'].split('/')[-2]
                 fobuuid = f['url'].split('/')[-2]
-                is_valid = bool(f['is_active'])
+                is_valid = bool(f['is_membership_valid']) and bool(f['is_active'])
                 try:
                     code = f"f:{int(f['code'])}"
                 except:

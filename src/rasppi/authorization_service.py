@@ -200,8 +200,12 @@ class AuthorizationService:
                 db.add(activity)
                 db.commit()
         finally:
-            mqtt_payload = self.make_mqtt_payload(activity)
-            self.trigger_notify(mqtt_payload)
+            try:
+                if activity is not None:
+                    mqtt_payload = self.make_mqtt_payload(activity)
+                    self.trigger_notify(mqtt_payload)
+            except Exception as mq:
+                logger.error("Failed to dispatch mqtt message: {mq}",exc_info=True)
             db.close()
 
 
@@ -230,7 +234,7 @@ class AuthorizationService:
             "uid": activity.credentialref,
             "hostname": activity.facility
         }
-        return payload
+        return dumps(payload)
 
     def notify_mqtt(self, payload):
         if Config.mqtt_broker is None or Config.mqtt_topic is None or Config.mqtt_port is None:
@@ -239,7 +243,7 @@ class AuthorizationService:
         try:
             client = mqtt.Client()
             client.connect(Config.mqtt_broker,Config.mqtt_port)
-            client.publish(Config.mqtt_topic,dumps(payload))
+            client.publish(Config.mqtt_topic,payload)
             client.disconnect()
         except Exception as e:
             logger.error(f"Failed to signal MQTT message:  {e}")
