@@ -6,6 +6,8 @@ tcmaker_access:
     url: https://members.tcmaker.org/api/v1/keyfobs/
     api_key: $CLUBHOUSE
     refresh: 20
+    wildapricot: $WILDAPRICOT
+
 
   facilities:
     front_door:
