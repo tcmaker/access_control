@@ -1,7 +1,6 @@
-<div class="inner" style="
-     border: 2px solid #a47171;
-     background-color: #ffbdbd;">
-  <h1>Membership not Active.</h1>
-  <h2>Please confirm subscription status in Member Dashboard</h2>
-    <h2>Contact member@tcmaker.org with your fob number to resolve.</h2>
+<div class="alert alert-danger text-center rounded-5 pb-5 h-100 border border-danger" style="display: none" id="expiredcontent">
+  <h1 class="display-1 my-5">Membership not Active.</h1>
+  <h4 class="h2 my-5">Please confirm subscription status in the Member Dashboard.</h4>
+  <h4 class="h2 my-5">Contact member@tcmaker.org with your fob number to resolve.</h4>
+    <img src="{{ url_for("static",filename="qr-code.png") }}" class="w-25"/>
 </div>

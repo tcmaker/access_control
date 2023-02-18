@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Stuff!</title>
+    <title>TCMaker Welcome Screen</title>
+    <link href="../static/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static',filename='bootstrap.min.css') }}" rel="stylesheet">
     <style>
         @font-face {
             font-family: 'League Spartan';
@@ -19,51 +21,17 @@
             font-style: normal; }
 
         html, body {
-    font-size: 120%;
-        font-family: "League Spartan", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+            font-size: larger;
+            font-family: "League Spartan", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+            height: 93%; /*vh;*/
+            --bs-bg-opacity:1;
+            background-color:rgba(var(--bs-light-rgb),var(--bs-bg-opacity))!important
+        }
         /*font-family-sans-serif: "Helvetica Neue", Arial, Helvetica, Roboto, sans-serif;
         font-family-monospace: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;*/
-    margin: 0;
-    padding: 0;
-    height: 100%;
     }
 
-    #container {
-    position: absolute;
-    /*display: -webkit-flex;
-    display: flex;
-    -webkit-flex-direction: column;
-    flex-direction: column;*/
-    top: 20vmin;
-    bottom: 5vmin;
-    left: 5vmin;
-    right: 5vmin;
-    background-color: #eee;
-    padding: 15px;
-    }
 
-    .header{
-    position: absolute;
-    top: 5vmin;
-    left: 5vmin;
-    right: 5vmin;
-    height: 15vmin;
-    padding: 3vmin;
-    background-color: cyan;
-    }
-
-    .inner {
-    position: absolute;
-    top: 5vmin;
-    left: 5vmin;
-    right: 5vmin;
-    bottom: 5vmin;
-    padding: 5vmin;
-    text-align: center;
-    border: 2px solid #84a471;
-    background-color: #d2ffbc;
-    border-radius: 5vmin;
-    }
      .clock {
             position: absolute;
             top: 5vmin;
@@ -74,21 +42,41 @@
             font-family: "League Spartan";
             letter-spacing: 7px;
         }
+     #clockDisplay {
+         /*font-size: 250%;*/
+     }
 
 </style>
 </head>
 <body>
-<div class="header">
+<div class="container-fluid px-3 py-5 h-100 bg-light">
+<div class="row mb-3 justify-content-between">
+    <div class="col-7">
 <img src="{{ url_for('static',filename='logo-red-text.svg') }}"
-    style="height: 9vmin;" alt="TC Maker Logo" />
-    <div id="clockdisplay" class="clock" onload="showTime()">
-        <div id="timedisplay"></div>
-        <div id="seconddisplay"></div>
-        <div id="datedisplay"></div>
+    alt="TC Maker Logo" />
     </div>
+    <div id="clockDisplay" class="col-4" onload="showTime()">
+        <div class="row justify-content-end">
+            <div class="col">
+                <span class="h1 display-4" id="timedisplay">12:23</span>
+                <span class="h5 display-5" id="seconddisplay" style="vertical-align: top">44</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col" >
+                <h5 id="datedisplay">Tuesday</h5>
+            </div>
+        </div>
     </div>
-<div id="container">
+</div>
+    <div class="row h-100">
+<div id="updateTargets" >
+    {% include 'welcome.html' %}
     {% include 'expired.html' %}
+    {% include 'unrecognized.html' %}
+    {% include 'idle.html' %}
+</div>
+</div>
 </div>
 
 
@@ -101,20 +89,47 @@ $().ready(function () {
 
 function pollServer()
 {
+    var divs = ["#expiredcontent","#welcomecontent","#unrecognizedcontent","#idlecontent"];
     if(isActive)
     {
-            $.ajax({
-                url: "{{  url_for('longpoll') }}",
-                type: "GET",
-                success: function(result) {
-                    console.log(result)
-                    $("#container").html(result)
-                    pollServer();
-                },
-                error: function() {
-                    pollServer();
-                },
-                timeout: 60000})
+        $.ajax({
+            url: "{{  url_for('longpoll') }}",
+            type: "GET",
+            success: function(r) {
+                console.log("result from server:" + r);
+                //result = JSON.parse(r);
+                var newContent = r.content;
+                var oldContent = "";
+                for(const d of divs) {
+                    if($(d).css('display') !== 'none'){
+                        oldContent = d;
+                        break;
+                    }
+                }
+
+                var duration = 250;
+                if(newContent === "#idlecontent") {
+                    duration = 1500;
+                }
+                if(oldContent !== newContent) {
+                    $(oldContent).fadeOut(duration, function () {
+                        $(newContent).fadeIn();
+                    });
+                }
+                if(newContent === "#unrecognizedcontent") {
+                    $("#fobcontents").text(r.fob)
+                }
+                else{
+                    $("#fobcontents").text("")
+                }
+
+                //$("#updateTarget").html(result)
+                pollServer();
+            },
+            error: function() {
+                pollServer();
+            },
+            timeout: 60000})
     }
 }
 
@@ -124,24 +139,13 @@ function showTime(){
     var m = date.getMinutes(); // 0 - 59
     var s = date.getSeconds(); // 0 - 59
     var d = date.getDay()
-    var session = "AM";
-
-    /*if(h == 0){
-        h = 12;
-    }
-
-    if(h > 12){
-        h = h - 12;
-        session = "PM";
-    }*/
 
     h = (h < 10) ? "0" + h : h;
     m = (m < 10) ? "0" + m : m;
     s = (s < 10) ? "0" + s : s;
 
-    //var time = h + ":" + m + ":" + s + " " + session;
     var time = h + ":" + m;
-    var seconds = s;
+    var seconds = s
     var date = date.toLocaleDateString("en-US", {weekday:'long', month: 'long', day: 'numeric'})
 
     document.getElementById("timedisplay").innerText = time;
@@ -152,13 +156,9 @@ function showTime(){
 
     document.getElementById("datedisplay").innerText = date;
     document.getElementById("datedisplay").textContent = date;
-
     setTimeout(showTime, 1000);
-
 }
-
 showTime();
-
 </script>
 </body>
 </html>

@@ -1,6 +1,7 @@
-<div class="inner" style="
-     border: 2px solid #a4a371;
-     background-color: #fffebd;">
-  <h1>Keyfob not found!</h1>
-  <h2>Contact member@tcmaker.org with your fob number to resolve.</h2>
+<div class="alert alert-warning text-center rounded-5 pb-5 h-100 border border-warning" style="display: none" id="unrecognizedcontent">
+  <h1 class="display-1 my-5">Keyfob not recognized.</h1>
+  <h2 class="h2 my-5">Contact member@tcmaker.org with your fob number to resolve.</h2>
+  <h3 class="h3">Fob: <span id="fobcontents"></span></h3>
+    <img src="{{ url_for("static",filename="qr-code.png") }}" class="w-25"/>
+
 </div>

@@ -1,0 +1,13 @@
+[Unit]
+Description=Front Door Display Service
+After=multi-user.target
+
+[Service]
+#Type=Idle
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/door_display
+ExecStart=/home/pi/next-gen-access/bin/python3 /home/pi/door_display/door_display.py
+
+[Install]
+WantedBy=multi-user.target
