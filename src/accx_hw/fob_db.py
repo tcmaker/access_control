@@ -15,7 +15,7 @@ ADMIN = "Admin"
 ALWAYS = "Always"
 DISABLED = "Disabled"
 EXPIRED = "Expired"
-DENIED = "Denied"
+DENIED = "Denied" # Means the fob is unrecognized
 
 
 class __FobDb__(TcmakerBase):
@@ -55,6 +55,22 @@ class FobDatabase():
         except Exception as e:
             logger.error(f"Unable to test code: {code}, e: {e}")
             return (False, None)
+        finally:
+            db.close()
+
+    def get(self, code: str) -> __FobDb__: # yes/no, who, their expiration
+        db = self.ScopedSession()
+        try:
+            user : list[__FobDb__] = db.query(__FobDb__).filter(__FobDb__.code == code).all()
+            if len(user) == 0:
+                return None
+            if len(user) > 1:
+                logger.warning(f"Unexpected duplicate users with same fob number: {code}")
+            user : __FobDb__ = user[0]
+            return user
+        except Exception as e:
+            logger.error(f"Unable to test code: {code}, e: {e}")
+            return None
         finally:
             db.close()
 
@@ -116,13 +132,3 @@ class FobDatabase():
             return False
         finally:
             db.close()
-
-if __name__ == "__main__":
-    db = FobDatabase("test.db")
-    db.add("F:15598498","person",datetime.max)
-    db.add("F:15598497","other_person",datetime.min)
-    print(f"{db.is_active('f:15598498')} should be true")
-    print(f"{db.is_active('f:15598497')} should be false")
-    print(f"{db.is_active('f:15698498')} should be false")
-    #db.remove("f:0015598498")
-    #print(f"{db.is_active('f:0015598498')} should be false")
