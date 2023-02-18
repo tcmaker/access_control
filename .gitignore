@@ -6,3 +6,4 @@ rest_outputs
 *__pycache__*
 *.env
 *.db
+old
