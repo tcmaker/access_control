@@ -298,7 +298,7 @@ class Configuration():
             self.mqtt_broker = config['system']['mqtt_broker'] if 'mqtt_broker' in config['system'] else None
             self.mqtt_topic = config['system']['mqtt_topic'] if 'mqtt_topic' in config['system'] else None
             self.mqtt_port = config['system']['mqtt_port'] if 'mqtt_port' in config['system'] else None
-            logging.info(f"MQTT setup to {self.mqtt_topic} via {self.mqtt_broker}:{self.mqtt_port}")
+            logging.debug(f"MQTT setup to {self.mqtt_topic} via {self.mqtt_broker}:{self.mqtt_port}")
         except:
             pass
 

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Fob Evaluation{% endblock %}
+{% block titlecontent %}<h1 class="h2">Current Fob Evaluation: {{ tested_fob }}</h1>
+
+{% endblock %}
+{% block content %}
+    <h4>Refresh page to see current status.</h4>
+    <table class="table table-sm">
+    {% for (k,v) in results.items() %}
+        <tr>
+        <th colspan="5" class="h3 text-info">{{ k }}</th>
+        </tr>
+            <tr class="{{ 'table-success' if v[0] else 'table-danger' }} "
+
+            ><th class="ml-5">Would Grant?</th><td>{{ "Yes!" if v[0] else "No" }}</td></tr>
+            <tr>
+                <th>Member:</th><td>
+                {% if v[2].startswith('tcmembership') and v[1] %}
+        <a href="https://members.tcmaker.org/api/v1/persons/{{v[1]}}/">{{v[1]}}</a>
+        {% elif v[2].startswith('wildapricot') and v[1] %}
+	<a href="https://wa.tcmaker.org/admin/contacts/details/?contactId={{v[1]}}">{{v[1]}}</a>
+        {% else %}{{ v[1] }}{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <th>Expiration Date:</th><td>{{ v[3] }}</td>
+            </tr>
+            <tr>
+                <th>Last Update:</th><td>{{ v[4] }}</td>
+            </tr>
+            <tr>
+                <th>Result:</th><td>{{ v[2] }}</td>
+            </tr>
+        <tr>&nbsp;</tr>
+    {% endfor %}
+    </table>
+
+    <hr />
+    <span class="h5">Test Another Fob:</span>
+    <form class="form-inline" method="get" action="{{ url_for('test_fob') }}">
+     <input type="text" name="fobnumber" placeholder="Fob Number" class="form-control mb-2 mr-sm-2" >
+     <button class="btn btn-primary mb-2" value="submit">Test</button></form>
+
+{% endblock %}

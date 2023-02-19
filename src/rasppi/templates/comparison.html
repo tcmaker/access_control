@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Migration checker{% endblock %}
+{% block titlecontent %}<h1 class="h2">Membership source comparison: {{ tested_fob }}</h1>
+
+{% endblock %}
+{% block content %}
+    <h4>Refresh page to see current status.</h4>
+
+    <h3>Dupes</h3>
+    <table class="table table-sm">
+        {% if dupes_wa %}
+        <tr><th>Wild Apricot</th><tr>
+        <tr><th>Fob</th><th>Person</th></tr>
+        {% for d in dupes_wa %}
+        <tr>
+            <td>{{d['fob'] }}</td>
+            <td><a href="https://wa.tcmaker.org/admin/contacts/details/?contactId={{d['person']}}">{{d['person']}}</a></td>
+        </tr>
+            {% endfor %}
+        {% endif %}
+    {% if dupes_tc %}
+        <tr><th>TC Membership</th><tr>
+        <tr><th>Fob</th><th>Person</th></tr>
+        {% for d in dupes_tc %}
+        <tr>
+            <td>f:{{d['code'] }}</td>
+            <td><a href="https://members.tcmaker.org/api/v1/persons/{{d['person']}}/">{{d['person'].split("/")[-2]}}</a></td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </table>
+
+    <h3>Paired Fobs: {{ pairs_length }}</h3>
+
+    <h3>Discrepancies: {{ discrepancies|length }}</h3>
+    <table class="table table-sm">
+    <tr><th>Wild Apricot</th><th>Status</th><th>Enabled</th><th>Renewal</th><th>Evaluation</th><th>TCM</th><th>Last Scan</th></tr>
+    {% for compare in discrepancies %}
+        {% set wa = compare['wa'] %}
+        {% set tc = compare['tc'] %}
+        <tr>
+        {% set waclass = 'table-warning' if tc['ee'] else '' %}
+        <td class="{{ waclass }}"><a href="https://members.tcmaker.org/api/v1/persons/{{wa['person']}}/">{{ wa['person'] }}</a></td>
+            <td class="{{waclass}}">{{ wa['status'] }}</td>
+            <td class="{{waclass}}">{{ wa['enabled'] }}</td>
+            <td class="{{waclass}}">{{ wa['rd'] }}</td>
+            <td class="{{waclass}}">{{ wa['ee'] }}</td>
+
+
+            <td><a href="https://wa.tcmaker.org/admin/contacts/details/?contactId={{tc['person_id']}}">{{tc['person_id']}}</a></td>
+            <td>{{ tc['is_membership_valid'] }}</td>
+            <td>{{ tc['is_active'] }}</td>
+            <td>{{ tc['rd'] }}</td>
+            <td>{{ tc['ee'] }}</td>
+            <td>{{ compare['last_scan']|pretty_past + ' - ' + compare['last_scan']|string if compare['last_scan'] else 'Never' }}</td>
+        </tr>
+    {% endfor %}
+    </table>
+
+    <h3>Missing from WA: {{ missing_wa|length }}</h3>
+    <table class="table table-sm">
+    <tr>
+        <th>Person</th>
+        <th>Is Membership Valid</th>
+        <th>Is Active</th>
+        <th>Fob</th>
+        <th>Expiration</th>
+    </tr>
+    {% for compare in missing_wa %}
+        <tr class="{{  'table-warning' if compare['is_membership_valid'] and compare['is_active']}}">
+            <td><a href="{{ compare['person'] }}">{{ compare['person'].split("/")[-2] }}</a>    </td>
+            <td>{{ compare['is_membership_valid'] }}</td>
+            <td>{{ compare['is_active'] }}</td>
+            <td>{{ compare['code'] }}</td>
+            <td>{{ compare['membership_valid_through'] }}</td>
+            <td>{{ compare['last_scan']|pretty_past + ' - ' + compare['last_scan']|string if compare['last_scan'] else 'Never' }}</td>
+    </tr>
+    {% endfor %}
+    </table>
+
+{% endblock %}

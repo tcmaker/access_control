@@ -62,4 +62,16 @@
 {% endfor %}
 </tbody>
 </table>
+
+    <hr />
+    <span class="h5">Test Fob Status:</span>
+    <form class="form-inline" method="get" action="{{ url_for('test_fob') }}">
+     <input type="text" name="fobnumber" placeholder="Fob Number" class="form-control mb-2 mr-sm-2" >
+     <button class="btn btn-primary mb-2" value="submit">Test</button></form>
+
+    <br />
+    <a href="{{ url_for('compare_sources') }}">Compare membership sources</a>. This function is expensive so use it sparingly.
+
+
+
 {% endblock %}

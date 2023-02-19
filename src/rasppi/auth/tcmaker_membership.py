@@ -4,7 +4,7 @@ from threading import Lock, Thread
 from os import environ
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
-from sqlalchemy import Table, Column, Integer, String, Date, Boolean, ForeignKey
+from sqlalchemy import Table, Column, Integer, String, Date, Boolean, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 import logging
 import requests
@@ -22,6 +22,7 @@ class TcmakerMembershipDb(TcmakerBase):
     member_active = Column(Boolean)
     expiration = Column(Date)
     fobuuid = Column(String)
+    last_updated = Column(DateTime)
 
 class TcmakerMemberRest():
     def __init__(self, person, fob_code, expiration_date, is_active):
@@ -148,13 +149,15 @@ class TcmakerMembership(AuthPlugin):
                     mem: TcmakerMembershipDb = members[idpair]
                     members.pop(idpair)
                     #see if we should update this one
-                    if mem.member_active != is_valid or mem.code != code or mem.expiration != expiration:
+                    if mem.member_active != is_valid or mem.code != code or mem.expiration != expiration.date():
                         mem.member_active = is_valid
                         mem.code = code
                         mem.expiration = expiration
                         num_modified += 1
+                        mem.last_updated = datetime.now()
                 else: #they're new!
-                    newMember = TcmakerMembershipDb(person=personuuid,code=code,member_active=is_valid,expiration=expiration, fobuuid=fobuuid)
+                    newMember = TcmakerMembershipDb(person=personuuid,code=code,member_active=is_valid,expiration=expiration.date(), fobuuid=fobuuid,
+                                                    last_updated=datetime.now())
                     db.add(newMember)
                     num_added += 1
             for m in members.values():
@@ -176,23 +179,23 @@ class TcmakerMembership(AuthPlugin):
     # Membership Expired
 
     #:rtype: (bool: grant or not, str: the member id, str: the authorization type)
-    def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str):
+    def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str, datetime, datetime):
         if credential_type != "fob": #maybe
-            return (False, None, "tcmembership:unknown_fob")
+            return (False, None, "tcmembership:unknown_fob", None,  None)
 
         credential_string = f"f:{credential_value}"
         db = self.ScopedSession()
         try:
             user : list[TcmakerMembershipDb] = db.query(TcmakerMembershipDb).filter(TcmakerMembershipDb.code == credential_string).all()
             if len(user) == 0:
-                return (False, None, "tcmembership:unknown_fob")
+                return (False, None, "tcmembership:unknown_fob", None, None)
             if len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {credential_string}")
             user : TcmakerMembershipDb = user[0]
             if user.member_active:
-                return (user.member_active,user.person,"tcmembership:granted")
+                return (user.member_active,user.person,"tcmembership:granted",user.expiration, user.last_updated)
             else:
-                return (user.member_active, user.person, "tcmembership:expired")
+                return (user.member_active, user.person, "tcmembership:expired",user.expiration, user.last_updated)
         except Exception as e:
             logger.error(f"Unable to test fob: {credential_value}, e: {e}")
         finally:

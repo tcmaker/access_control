@@ -26,20 +26,22 @@ class TcmakerMembershipDb(TcmakerBase):
     member_enabled = Column(Boolean)
     member_status = Column(String)
     expiration = Column(DateTime)
+    last_updated = Column(DateTime)
 
     def should_grant(self, now_time):
         if not self.member_enabled:
-            return (False, self.person, "wildapricot:not_enabled")
+            return (False, self.person, "wildapricot:not_enabled", self.expiration, self.last_updated)
         if self.member_status != "Active":
-            return (False, self.person, "wildapricot:not_active")
+            return (False, self.person, "wildapricot:not_active", self.expiration, self.last_updated)
         if self.expiration < now_time:
-            return (False, self.person, "wildapricot:expired")
-        return (True, self.person, "wildapricot:granted")
+            return (False, self.person, "wildapricot:expired",self.expiration, self.last_updated)
+        return (True, self.person, "wildapricot:granted", self.expiration, self.last_updated)
 
     @staticmethod
     def from_json(json):
         return TcmakerMembershipDb(person=str(json['person']), code=json['fob'], member_enabled=json['enabled'], expiration=json['renewal_due'],
-                            member_status=json['status'])
+                            member_status=json['status'],
+                                last_updated=datetime.now())
 
 class WildApricotAuth(AuthPlugin):
     def __init__(self):
@@ -252,6 +254,7 @@ class WildApricotAuth(AuthPlugin):
                         mem.expiration = expiration
                         mem.member_status = status
                         num_modified += 1
+                        mem.last_updated = datetime.now()
                 else: #they're new!
                     newMember = TcmakerMembershipDb.from_json(contact)
                     db.add(newMember)
@@ -275,16 +278,16 @@ class WildApricotAuth(AuthPlugin):
     # Membership Expired (according to me)
 
     #:rtype: (bool: grant or not, str: the member id, str: the authorization type)
-    def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str):
+    def on_scan(self, credential_type, credential_value, scanner, facility, now_time) -> (bool, str, str, datetime, datetime):
         if credential_type != "fob": #maybe
-            return (False, None, "wildapricot:unknown_fob")
+            return (False, None, "wildapricot:unknown_fob", None, None)
 
         credential_string = f"f:{int(credential_value)}"
         db = self.ScopedSession()
         try:
             user : list[TcmakerMembershipDb] = db.query(TcmakerMembershipDb).filter(TcmakerMembershipDb.code == credential_string).all()
             if len(user) == 0:
-                return (False, None, "wildapricot:unknown_fob")
+                return (False, None, "wildapricot:unknown_fob", None, None)
             if len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {credential_string}")
             user : TcmakerMembershipDb = user[0]

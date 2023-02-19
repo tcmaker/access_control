@@ -106,10 +106,13 @@ class AuthorizationService:
                     fv: Facility
                     # def facilityStatus(f : Facility):
                     #    return self.boards[f.board].relaystatus[f.relay]
-                    status = dict((f.name,
-                                   self.boards[f.board].relaystatus[f.relay]) for f in Config.Facilities.values())
+                    try:
+                        status = dict((f.name,
+                                       self.boards[f.board].relaystatus[f.relay]) for f in Config.Facilities.values())
                     # status = list(map(facilityStatus,Config.Facilities.values()))
-                    self._outqueue.put(status)
+                        self._outqueue.put(status)
+                    except:
+                        self._outqueue.put({})
                 elif r[0] == "query":
                     response = []
                     bv: ReaderBoard
@@ -118,6 +121,10 @@ class AuthorizationService:
                     for bv in query_devices(ignored_devices=self.boards.values()):
                         response.append(bv)
                     self._outqueue.put(response)
+                elif r[0] == 'checkfob':
+                    (a, fob) = r
+                    logger.info(f"Got check fob for {fob}")
+                    self._outqueue.put(self.check_fob_status(fob))
                 elif r[0] == "reload":
                     # We have to do this here, even though it's also done in the webpanel, because
                     # Config is different here vs webpanel due to multiprocessing
@@ -169,7 +176,7 @@ class AuthorizationService:
                     #attempt to find an authorization for the user
                     for am in self.authModules:
                         try:
-                            (grant, member, auth) = am.on_scan(credential_type,credential_value,scanner,facility, now)
+                            (grant, member, auth, expiration, last_update) = am.on_scan(credential_type,credential_value,scanner,facility, now)
                             if grant:
                                 #CURFEW ENFORCING HACKJOB, REMOVE ME
                                 if (now > self.curfew_start and now < self.curfew_end):
@@ -208,6 +215,11 @@ class AuthorizationService:
                 logger.error("Failed to dispatch mqtt message: {mq}",exc_info=True)
             db.close()
 
+    def check_fob_status(self, fob):
+        try:
+            return {am.__module__ : am.on_scan("fob", fob, None, None, datetime.now()) for am in self.authModules}
+        except:
+            return None
 
     def make_mqtt_payload(self, activity):
         access = "Denied"  # unknown fobs end up with this default value
@@ -242,7 +254,7 @@ class AuthorizationService:
 
         try:
             client = mqtt.Client()
-            client.connect(Config.mqtt_broker,Config.mqtt_port)
+            client.connect(Config.mqtt_broker, Config.mqtt_port)
             client.publish(Config.mqtt_topic,payload)
             client.disconnect()
         except Exception as e:
