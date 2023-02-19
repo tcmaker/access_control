@@ -34,7 +34,8 @@
 
     <h3>Discrepancies: {{ discrepancies|length }}</h3>
     <table class="table table-sm">
-    <tr><th>Wild Apricot</th><th>Status</th><th>Enabled</th><th>Renewal</th><th>Evaluation</th><th>TCM</th><th>Last Scan</th></tr>
+    <tr><th>Wild Apricot</th><th>Status</th><th>Enabled</th><th>Renewal</th><th>Evaluation</th>
+        <th>TCM</th><th>Member Valid</th><th>Is Active</th><th>Valid Thru</th><th>Evaluation</th><th>Last Scan</th></tr>
     {% for compare in discrepancies %}
         {% set wa = compare['wa'] %}
         {% set tc = compare['tc'] %}
@@ -65,6 +66,7 @@
         <th>Is Active</th>
         <th>Fob</th>
         <th>Expiration</th>
+        <th>Last Scan</th>
     </tr>
     {% for compare in missing_wa %}
         <tr class="{{  'table-warning' if compare['is_membership_valid'] and compare['is_active']}}">
