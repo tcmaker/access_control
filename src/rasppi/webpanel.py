@@ -415,7 +415,7 @@ def compare_sources():
 
         if len(wa) == 0:
             for t in tc:
-                scan = g.dbsession.query(Activity).filter(Activity.credentialref == activity_ff).order_by(Activity.timestamp).limit(1)
+                scan = g.dbsession.query(Activity).filter(Activity.credentialref == activity_ff).order_by(Activity.timestamp.desc()).limit(1)
                 t['last_scan'] = scan.first().timestamp if scan.count() > 0 else None
                 missing_wa.append(t)
         elif len(tc) == 0:
@@ -441,8 +441,8 @@ def compare_sources():
                     t['rd'] = tc_exp
                     w['rd'] = wa_exp
                     if wa_enabled != tc_enabled:
-                        scan = g.dbsession.query(Activity).filter(Activity.credentialref==activity_ff).order_by(Activity.timestamp).limit(1)
-                        discrepancies.append({"wa": w, "tc": t, 'last_scan': scan.first().timestamp if scan.count() > 0 else None})
+                        scan = g.dbsession.query(Activity).filter(Activity.credentialref==activity_ff).order_by(Activity.timestamp.desc()).limit(1)
+                        discrepancies.append({'fob':f, "wa": w, "tc": t, 'last_scan': scan.first().timestamp if scan.count() > 0 else None})
 
     missing_wa.sort(key=itemgetter('person'))
     discrepancies.sort(key= lambda a: a['wa']['person'])
