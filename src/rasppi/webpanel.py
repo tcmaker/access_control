@@ -373,19 +373,15 @@ def log():
 
 @webpanel.route("/compare")
 def compare_sources():
-    # wa = WildApricotAuth()
-    # wa_schema_name = wa.get_configuration_schema()[0]
-    # wa.read_configuration(Config.RawConfig["auth"][wa_schema_name])
-    # wa_fobs = list(wa.list_wa_accounts())
-    # tcm = TcmakerMembership()
-    # tcm_schema_name = tcm.get_configuration_schema()[0]
-    # tcm.read_configuration(Config.RawConfig["auth"][tcm_schema_name])
-    # tcm_fobs = list(tcm.list_keyfobs(tcm.Url))
+    wa = WildApricotAuth()
+    wa_schema_name = wa.get_configuration_schema()[0]
+    wa.read_configuration(Config.RawConfig["auth"][wa_schema_name])
+    wa_fobs = list(wa.list_wa_accounts())
+    tcm = TcmakerMembership()
+    tcm_schema_name = tcm.get_configuration_schema()[0]
+    tcm.read_configuration(Config.RawConfig["auth"][tcm_schema_name])
+    tcm_fobs = list(tcm.list_keyfobs(tcm.Url))
     g.dbsession = Config.ScopedSession()
-    with open('wafobs.json','r') as wafobs:
-        wa_fobs = json.load(wafobs)
-    with open('tcfobs.json','r') as tcfobs:
-        tcm_fobs = json.load(tcfobs)
 
     all_fobs = set([f['fob'] for f in wa_fobs] + ["f:" + f['code'] for f in tcm_fobs])
     # find_dupes
@@ -447,13 +443,7 @@ def compare_sources():
                         scan = g.dbsession.query(Activity).filter(Activity.credentialref==f.replace("f:","fob:")).order_by(Activity.timestamp).limit(1)
                         discrepancies.append({"wa": w, "tc": t, 'last_scan': scan.first().timestamp if scan.count() > 0 else None})
 
-    #print(f"Len missing WA: {len(missing_wa)}")
-    #print(f"Len missing TC: {len(missing_tcm)}")
-    #print(f"Len pairs: {len(pairs)}")
-
     missing_wa.sort(key=itemgetter('person'))
     discrepancies.sort(key= lambda a: a['wa']['person'])
-    #for p in pairs:
-    #    w = p['wa']
 
     return render_template("comparison.html",missing_wa=missing_wa, missing_tcm=missing_tcm, discrepancies=discrepancies, dupes_wa=wa_dupes,dupes_tc=tcm_dupes, pairs_length=pairs)
