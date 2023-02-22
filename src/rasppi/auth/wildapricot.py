@@ -12,25 +12,28 @@ from sqlalchemy.ext.declarative import declarative_base
 import logging
 import requests
 
-TcmakerBase = declarative_base()
+WildApricotBase = declarative_base()
 
 logger = logging.getLogger("wildapricot")
 
-class TcmakerMembershipDb(TcmakerBase):
+class WildApricotDb(WildApricotBase):
     __tablename__ = 'members'
 
     id = Column(Integer, primary_key=True)
     person = Column(String)
-    person_url = Column(String)
+    person_url = Column(String) # not actually used
     code = Column(String)
     member_enabled = Column(Boolean)
     member_status = Column(String)
+    is_banned = Column(Boolean)
     expiration = Column(DateTime)
     last_updated = Column(DateTime)
 
     def should_grant(self, now_time):
         if not self.member_enabled:
             return (False, self.person, "wildapricot:not_enabled", self.expiration, self.last_updated)
+        if self.is_banned:
+            return (False, self.person, "wildapricot:banned", self.expiration, self.last_updated)
         if self.member_status != "Active":
             return (False, self.person, "wildapricot:not_active", self.expiration, self.last_updated)
         if self.expiration < now_time:
@@ -39,8 +42,8 @@ class TcmakerMembershipDb(TcmakerBase):
 
     @staticmethod
     def from_json(json):
-        return TcmakerMembershipDb(person=str(json['person']), code=json['fob'], member_enabled=json['enabled'], expiration=json['renewal_due'],
-                            member_status=json['status'],
+        return WildApricotDb(person=str(json['person']), code=json['fob'], member_enabled=json['enabled'], expiration=json['renewal_due'],
+                            member_status=json['status'], is_banned=json['banned'],
                                 last_updated=datetime.now())
 
 class WildApricotAuth(AuthPlugin):
@@ -91,7 +94,7 @@ class WildApricotAuth(AuthPlugin):
         Session = sessionmaker(bind=engine)
         # session = Session()
         self.ScopedSession = scoped_session(Session)
-        TcmakerBase.metadata.create_all(engine)
+        WildApricotBase.metadata.create_all(engine)
         logger.info("Loaded Wild Apricot Membership Plugin")
         self.LastSQLRefresh = datetime.min
         self.refresh_lock = Lock()
@@ -119,10 +122,11 @@ class WildApricotAuth(AuthPlugin):
             self.refresh_lock.release()
             self.refresh_done_event.set()
 
-    def getFieldValue(self, js, fv):
+    def getFieldValue(self, js, fv, default=None):
         match = [a['Value'] for a in js['FieldValues'] if a['FieldName'] == fv]
         if match:
             return match[0]
+        return default
 
     def get_access_token(self):
         refresh_url = 'https://oauth.wildapricot.org/auth/token/'
@@ -187,6 +191,7 @@ class WildApricotAuth(AuthPlugin):
                 enabled = bool(json["MembershipEnabled"])
             else:
                 enabled = False
+            banned = self.getFieldValue(json, "is_banned", False)
 
             fob_value = f"f:{int(fob)}"
         except:
@@ -206,14 +211,15 @@ class WildApricotAuth(AuthPlugin):
             'enabled': enabled,
             "status": json['Status'] if 'Status' in json else 'Lapsed',
             "renewal_due": renewal,
+            "banned" : banned,
         }
         return contact
 
     def attempt_on_demand_auth(self, account, fob, now):
         try:
-            contact = auth.get_single_contact(account, fob)
+            contact = self.get_single_contact(account, fob)
             if contact:
-                self.on_demand_result = TcmakerMembershipDb.from_json(contact).should_grant(now)
+                self.on_demand_result = WildApricotDb.from_json(contact).should_grant(now)
             else:
                 self.on_demand_result = None
         finally:
@@ -230,8 +236,8 @@ class WildApricotAuth(AuthPlugin):
         num_modified = 0
         num_added = 0
         # this could all be done a lot more efficiently, but future me can deal with that
-        m: TcmakerMembershipDb
-        members: dict = {(m.person, m.code): m for m in db.query(TcmakerMembershipDb).order_by(TcmakerMembershipDb.person).all() }
+        m: WildApricotDb
+        members: dict = {(m.person, m.code): m for m in db.query(WildApricotDb).order_by(WildApricotDb.person).all() }
         #members: list[TcmakerMembershipDb] =
         current_fob = "None"
         try:
@@ -241,22 +247,25 @@ class WildApricotAuth(AuthPlugin):
                 #person_url = contact['url']
                 enabled = contact['enabled']
                 status = contact['status']
+                banned = contact['banned']
                 expiration = contact['renewal_due']
 
                 idpair = (person_id, code)
                 if idpair in members:
-                    mem: TcmakerMembershipDb = members[idpair]
+                    mem: WildApricotDb = members[idpair]
                     members.pop(idpair)
                     #see if we should update this one
-                    if mem.member_enabled != enabled or mem.code != code or mem.expiration != expiration or mem.member_status != status:
+                    if mem.member_enabled != enabled or mem.code != code or mem.expiration != expiration or\
+                            mem.member_status != status or mem.is_banned != banned:
                         mem.member_enabled = enabled
+                        mem.is_banned = banned
                         mem.code = code
                         mem.expiration = expiration
                         mem.member_status = status
                         num_modified += 1
                         mem.last_updated = datetime.now()
                 else: #they're new!
-                    newMember = TcmakerMembershipDb.from_json(contact)
+                    newMember = WildApricotDb.from_json(contact)
                     db.add(newMember)
                     num_added += 1
             for m in members.values():
@@ -285,12 +294,12 @@ class WildApricotAuth(AuthPlugin):
         credential_string = f"f:{int(credential_value)}"
         db = self.ScopedSession()
         try:
-            user : list[TcmakerMembershipDb] = db.query(TcmakerMembershipDb).filter(TcmakerMembershipDb.code == credential_string).all()
+            user : list[WildApricotDb] = db.query(WildApricotDb).filter(WildApricotDb.code == credential_string).all()
             if len(user) == 0:
                 return (False, None, "wildapricot:unknown_fob", None, None)
             if len(user) > 1:
                 logger.warning(f"Unexpected duplicate users with same fob number: {credential_string}")
-            user : TcmakerMembershipDb = user[0]
+            user : WildApricotDb = user[0]
             first_pass = user.should_grant(now_time)
             if first_pass[0]:
                 return first_pass
