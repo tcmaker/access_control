@@ -49,7 +49,7 @@ class AuthorizationService:
                 ap.on_load()
             except Exception as ee:
                 logger.error(f"failed to configure {ap}, exception: {ee}")
-        return sorted(auth_plugins, key=lambda ap: ap.priority())
+        return sorted(auth_plugins, key=lambda ap: ap.priority(), reverse=True)
 
     def reload_boards(self):
         self.boardLock.acquire()
@@ -171,12 +171,14 @@ class AuthorizationService:
                 credential_value = code
                 credential_ref = f'{credential_type}:{credential_value}'
                 (facility, scanner) = self.find_facility(device_id, scanner_index)
+                auth_results = {}
                 if facility is not None:
                     now = datetime.now()
                     #attempt to find an authorization for the user
                     for am in self.authModules:
                         try:
                             (grant, member, auth, expiration, last_update) = am.on_scan(credential_type,credential_value,scanner,facility, now)
+                            auth_results[am.__module__] = (grant, member, auth, expiration, last_update)
                             if grant:
                                 #CURFEW ENFORCING HACKJOB, REMOVE ME
                                 if (now > self.curfew_start and now < self.curfew_end):
@@ -200,12 +202,14 @@ class AuthorizationService:
                         except Exception as ame:
                             logger.error(f"Failed to call auth module {am.__module__}:  {ame}")
                 # no credential matched, or no valid facility, user is denied
-                activity = Activity(memberid=member, authorization=auth, credentialref=credential_ref,
+                wauth = auth_results.get('auth.wildapricot',None)
+                if wauth:
+                    activity = Activity(memberid=wauth[1], authorization=wauth[2], credentialref=credential_ref,
                                     result="denied", timestamp=datetime.now(),
                                     facility=facility.name if facility is not None else None,
                                     notified=False)
-                db.add(activity)
-                db.commit()
+                    db.add(activity)
+                    db.commit()
         finally:
             try:
                 if activity is not None:

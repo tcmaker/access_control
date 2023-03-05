@@ -332,10 +332,20 @@ def test_fob():
     fob_to_test = str(int(request.args['fobnumber']))
     q: Queue = webpanel.config['squeue']
     w: Queue = webpanel.config['wqueue']
+    try:
+        while True:
+            w.get(block=False)
+    except Empty:
+        pass
+
     q.put(("checkfob", fob_to_test))
     result = w.get(True, 1.0)
 
-    return render_template("fobtest.html",results=result, tested_fob=request.args['fobnumber'])
+    try:
+        return render_template("fobtest.html",results=result, tested_fob=request.args['fobnumber'])
+    except:
+        logger.error(f"Failed to render. Result={result}")
+        return "Oops"
 
 
 @webpanel.route('/log')
@@ -447,4 +457,4 @@ def compare_sources():
     missing_wa.sort(key=itemgetter('person'))
     discrepancies.sort(key= lambda a: a['wa']['person'])
 
-    return render_template("comparison.html",missing_wa=missing_wa, missing_tcm=missing_tcm, discrepancies=discrepancies, dupes_wa=wa_dupes,dupes_tc=tcm_dupes, pairs_length=pairs)
+    return render_template("comparison.html",missing_wa=[ww for ww in missing_wa if ww['is_active'] and ww['last_scan']], missing_tcm=missing_tcm, discrepancies=discrepancies, dupes_wa=wa_dupes,dupes_tc=tcm_dupes, pairs_length=pairs)
