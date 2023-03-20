@@ -146,7 +146,7 @@ class WildApricotAuth(AuthPlugin):
                                                  },
                                         params={'$async': 'false',
                                                 '$filter': "'Key Fob' ne 'NULL' AND 'Key Fob' ne 0",
-                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status'"
+                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned'"
                                                 }
                                         )
         # Raise an exception on HTTP error
@@ -167,7 +167,7 @@ class WildApricotAuth(AuthPlugin):
                                                  },
                                         params={'$async': 'false',
                                                 f'$filter': f"'Key Fob' eq '{account_fob}' and 'User Id' eq '{account_id}'", # Filtering on this to reduce surprised
-                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status'"
+                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned'"
                                                 }
                                         )
         # Raise an exception on HTTP error
