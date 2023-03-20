@@ -17,6 +17,14 @@ from queue import Empty
 from datetime import datetime
 
 logger = logging.getLogger("auth")
+try:
+    from datadog_logger import get_datadog_logger
+    dd_logger = get_datadog_logger("frontdoor","front_door_access")
+    auth_service_logger = get_datadog_logger("authorization_service","front_door_access")
+    dd_logger.setLevel(logging.INFO)
+    auth_service_logger.setLevel(logging.INFO)
+except:
+    pass
 
 class AuthorizationService:
     boards: Dict[str, ReaderBoard]
@@ -49,6 +57,10 @@ class AuthorizationService:
                 ap.on_load()
             except Exception as ee:
                 logger.error(f"failed to configure {ap}, exception: {ee}")
+        try:
+            auth_service_logger.info("Authorization service started up")
+        except:
+            pass
         return sorted(auth_plugins, key=lambda ap: ap.priority(), reverse=True)
 
     def reload_boards(self):
@@ -253,6 +265,11 @@ class AuthorizationService:
         return dumps(payload)
 
     def notify_mqtt(self, payload):
+        try:
+            func = dd_logger.info if payload['access'] == 'Always' else dd_logger.warning
+            func(f"fob:{payload['uid']} scanned, result: {payload['access']}", extra={"authresult" : payload})
+        except:
+            pass
         if Config.mqtt_broker is None or Config.mqtt_topic is None or Config.mqtt_port is None:
             return
 
