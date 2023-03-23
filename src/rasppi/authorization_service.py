@@ -273,6 +273,7 @@ class AuthorizationService:
             "time": activity.timestamp.timestamp(),
             "isKnown": "True" if access != "Denied" else "False",
             "access": access,
+            "wa_access": log_access,
             "username": activity.memberid,
             "uid": activity.credentialref,
             "hostname": activity.facility
