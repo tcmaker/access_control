@@ -148,7 +148,7 @@ class WildApricotAuth(AuthPlugin):
                                                  'Authorization': f'Bearer {access_token}',
                                                  },
                                         params={'$async': 'false',
-                                                '$filter': "'Key Fob' ne 'NULL' AND 'Key Fob' ne 0",
+                                                '$filter': "'Key Fob' ne 'NULL' AND 'Key Fob' ne 0 AND 'IsArchived' eq False",
                                                 '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned', 'LastLoginDate'"
                                                 }
                                         )
