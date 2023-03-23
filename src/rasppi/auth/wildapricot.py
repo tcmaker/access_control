@@ -27,9 +27,12 @@ class WildApricotDb(WildApricotBase):
     member_status = Column(String)
     is_banned = Column(Boolean)
     expiration = Column(DateTime)
+    last_login = Column(DateTime, nullable=True)
     last_updated = Column(DateTime)
 
     def should_grant(self, now_time):
+        #if not self.last_login is not None:
+        #    return (False, self.person, "wildapricot:account_not_setup", self.expiration, self.last_updated)
         if not self.member_enabled:
             return (False, self.person, "wildapricot:not_enabled", self.expiration, self.last_updated)
         if self.is_banned:
@@ -43,7 +46,7 @@ class WildApricotDb(WildApricotBase):
     @staticmethod
     def from_json(json):
         return WildApricotDb(person=str(json['person']), code=json['fob'], member_enabled=json['enabled'], expiration=json['renewal_due'],
-                            member_status=json['status'], is_banned=json['banned'],
+                            member_status=json['status'], is_banned=json['banned'],last_login=json['last_login'],
                                 last_updated=datetime.now())
 
 class WildApricotAuth(AuthPlugin):
@@ -146,7 +149,7 @@ class WildApricotAuth(AuthPlugin):
                                                  },
                                         params={'$async': 'false',
                                                 '$filter': "'Key Fob' ne 'NULL' AND 'Key Fob' ne 0",
-                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned'"
+                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned', 'LastLoginDate'"
                                                 }
                                         )
         # Raise an exception on HTTP error
@@ -167,7 +170,7 @@ class WildApricotAuth(AuthPlugin):
                                                  },
                                         params={'$async': 'false',
                                                 f'$filter': f"'Key Fob' eq '{account_fob}' and 'User Id' eq '{account_id}'", # Filtering on this to reduce surprised
-                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned'"
+                                                '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned', 'LastLoginDate'"
                                                 }
                                         )
         # Raise an exception on HTTP error
@@ -202,6 +205,11 @@ class WildApricotAuth(AuthPlugin):
         except:
             renewal = datetime.min
 
+        try:
+            lld = str(self.getFieldValue(json,"LastLoginDate"))
+            last_login =datetime.fromisoformat(lld)
+        except:
+            last_login = None
 
 
         contact = {
@@ -211,7 +219,8 @@ class WildApricotAuth(AuthPlugin):
             'enabled': enabled,
             "status": json['Status'] if 'Status' in json else 'Lapsed',
             "renewal_due": renewal,
-            "banned" : banned,
+            "banned": banned,
+            'last_login': last_login
         }
         return contact
 
@@ -249,6 +258,7 @@ class WildApricotAuth(AuthPlugin):
                 status = contact['status']
                 banned = contact['banned']
                 expiration = contact['renewal_due']
+                last_login = contact['last_login']
 
                 idpair = (person_id, code)
                 if idpair in members:
@@ -256,7 +266,7 @@ class WildApricotAuth(AuthPlugin):
                     members.pop(idpair)
                     #see if we should update this one
                     if mem.member_enabled != enabled or mem.code != code or mem.expiration != expiration or\
-                            mem.member_status != status or mem.is_banned != banned:
+                            mem.member_status != status or mem.is_banned != banned or mem.last_login != last_login:
                         mem.member_enabled = enabled
                         mem.is_banned = banned
                         mem.code = code
