@@ -206,8 +206,8 @@ class WildApricotAuth(AuthPlugin):
             renewal = datetime.min
 
         try:
-            lld = str(self.getFieldValue(json,"Last login date"))
-            last_login =datetime.fromisoformat(lld)
+            lld = str(self.getFieldValue(json, "Last login date"))
+            last_login = datetime.fromisoformat(lld)
         except:
             last_login = None
 
@@ -274,6 +274,7 @@ class WildApricotAuth(AuthPlugin):
                         mem.member_status = status
                         num_modified += 1
                         mem.last_updated = datetime.now()
+                        mem.last_login = last_login
                 else: #they're new!
                     newMember = WildApricotDb.from_json(contact)
                     db.add(newMember)
