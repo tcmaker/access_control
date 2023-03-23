@@ -233,23 +233,38 @@ class AuthorizationService:
 
     def check_fob_status(self, fob):
         try:
+            auth_service_logger.info(f"Testing fob {fob} via diagnostic utility")
+        except:
+            pass
+
+        try:
             return {am.__module__ : am.on_scan("fob", fob, None, None, datetime.now()) for am in self.authModules}
         except:
             return None
 
     def make_mqtt_payload(self, activity):
         access = "Denied"  # unknown fobs end up with this default value
+        log_user = activity.memberid
+        if '-' in activity.memberid:
+            log_user = f'https://members.tcmaker.org/api/v1/persons/{activity.memberid}/' 
+        else:
+            log_user = f"https://wa.tcmaker.org/admin/contacts/details/?contactId={activity.memberid}"
+
+
         if activity.result == "granted":
             access = "Always"
+            log_access = "granted"
         else:
             if activity.authorization.startswith("wildapricot"):
                 reason = activity.authorization.split(":")[1]
+                log_access = reason
                 if reason == "expired":
                     access = "Expired"
                 elif reason == "not_enabled" or reason == "not_active":
                     access = "Disabled"
             if activity.authorization.startswith("tcmembership"):
                 reason = activity.authorization.split(":")[1]
+                log_access = reason
                 if reason == "expired":
                     access = "Expired"
 
@@ -262,14 +277,21 @@ class AuthorizationService:
             "uid": activity.credentialref,
             "hostname": activity.facility
         }
-        return dumps(payload)
+
+        pl = dumps(payload)
+
+        payload['username'] = log_user
+
+        try:
+            func = dd_logger.info if log_access == "granted" else dd_logger.warning
+            func(f"{payload['uid']} scanned - {activity.memberid}, result: {log_access}", extra={"authresult" : payload})
+            pass
+        except Exception as exx:
+            logger.warning(f"Failed datadog message: {exx}", exc_info=True)
+
+        return pl
 
     def notify_mqtt(self, payload):
-        try:
-            func = dd_logger.info if payload['access'] == 'Always' else dd_logger.warning
-            func(f"fob:{payload['uid']} scanned, result: {payload['access']}", extra={"authresult" : payload})
-        except:
-            pass
         if Config.mqtt_broker is None or Config.mqtt_topic is None or Config.mqtt_port is None:
             return
 
