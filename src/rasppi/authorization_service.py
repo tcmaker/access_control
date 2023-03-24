@@ -245,10 +245,13 @@ class AuthorizationService:
     def make_mqtt_payload(self, activity):
         access = "Denied"  # unknown fobs end up with this default value
         log_user = activity.memberid
+        auth_source = "unknown"
         if '-' in activity.memberid:
             log_user = f'https://members.tcmaker.org/api/v1/persons/{activity.memberid}/' 
+            auth_source = "tcmembership"
         else:
             log_user = f"https://wa.tcmaker.org/admin/contacts/details/?contactId={activity.memberid}"
+            auth_source = "wildapricot"
 
 
         if activity.result == "granted":
@@ -276,7 +279,8 @@ class AuthorizationService:
             "wa_access": log_access,
             "username": activity.memberid,
             "uid": activity.credentialref,
-            "hostname": activity.facility
+            "hostname": activity.facility,
+            "auth_source" : auth_source
         }
 
         pl = dumps(payload)
