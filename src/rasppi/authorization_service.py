@@ -19,8 +19,8 @@ from datetime import datetime
 logger = logging.getLogger("auth")
 try:
     from datadog_logger import get_datadog_logger
-    dd_logger = get_datadog_logger("frontdoor","front_door_access")
-    auth_service_logger = get_datadog_logger("authorization_service","front_door_access")
+    dd_logger = get_datadog_logger("frontdoor", "front_door_access")
+    auth_service_logger = get_datadog_logger("authorization_service", "authorization_service")
     dd_logger.setLevel(logging.INFO)
     auth_service_logger.setLevel(logging.INFO)
 except:
