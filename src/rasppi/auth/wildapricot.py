@@ -16,6 +16,9 @@ WildApricotBase = declarative_base()
 
 logger = logging.getLogger("wildapricot")
 
+EXPIRED_LEVEL = 1491510
+CANCELED_LEVEL = 1497893
+
 class WildApricotDb(WildApricotBase):
     __tablename__ = 'members'
 
@@ -27,8 +30,10 @@ class WildApricotDb(WildApricotBase):
     member_status = Column(String)
     is_banned = Column(Boolean)
     expiration = Column(DateTime)
+    membership_level = Column(Integer)
     last_login = Column(DateTime, nullable=True)
     last_updated = Column(DateTime)
+
 
     def should_grant(self, now_time):
         #if not self.last_login is not None:
@@ -37,6 +42,8 @@ class WildApricotDb(WildApricotBase):
             return (False, self.person, "wildapricot:not_enabled", self.expiration, self.last_updated)
         if self.is_banned:
             return (False, self.person, "wildapricot:banned", self.expiration, self.last_updated)
+        if self.membership_level == EXPIRED_LEVEL or self.membership_level == CANCELED_LEVEL: # Magic number, Expired level from WA
+            return (False, self.person, "wildapricot:expired", self.expiration, self.last_updated)
         if self.member_status != "Active":
             return (False, self.person, "wildapricot:not_active", self.expiration, self.last_updated)
         if self.expiration < now_time:
@@ -47,7 +54,7 @@ class WildApricotDb(WildApricotBase):
     def from_json(json):
         return WildApricotDb(person=str(json['person']), code=json['fob'], member_enabled=json['enabled'], expiration=json['renewal_due'],
                             member_status=json['status'], is_banned=json['banned'],last_login=json['last_login'],
-                                last_updated=datetime.now())
+                                last_updated=datetime.now(), membership_level=json['membership_level'])
 
 class WildApricotAuth(AuthPlugin):
     def __init__(self):
@@ -199,6 +206,12 @@ class WildApricotAuth(AuthPlugin):
             fob_value = f"f:{int(fob)}"
         except:
             return None
+
+        try:
+            level = json['MembershipLevel']['Id']
+        except:
+            level = 1491510
+
         try:
             rd = str(self.getFieldValue(json,"Renewal due"))
             renewal = datetime.fromisoformat(rd)
@@ -220,7 +233,8 @@ class WildApricotAuth(AuthPlugin):
             "status": json['Status'] if 'Status' in json else 'Lapsed',
             "renewal_due": renewal,
             "banned": banned,
-            'last_login': last_login
+            'last_login': last_login,
+            'membership_level' : level
         }
         return contact
 
@@ -259,6 +273,7 @@ class WildApricotAuth(AuthPlugin):
                 banned = contact['banned']
                 expiration = contact['renewal_due']
                 last_login = contact['last_login']
+                level = contact['membership_level']
 
                 idpair = (person_id, code)
                 if idpair in members:
@@ -266,7 +281,8 @@ class WildApricotAuth(AuthPlugin):
                     members.pop(idpair)
                     #see if we should update this one
                     if mem.member_enabled != enabled or mem.code != code or mem.expiration != expiration or\
-                            mem.member_status != status or mem.is_banned != banned or mem.last_login != last_login:
+                            mem.member_status != status or mem.is_banned != banned or mem.last_login != last_login or \
+                            mem.membership_level != level:
                         mem.member_enabled = enabled
                         mem.is_banned = banned
                         mem.code = code
@@ -275,6 +291,7 @@ class WildApricotAuth(AuthPlugin):
                         num_modified += 1
                         mem.last_updated = datetime.now()
                         mem.last_login = last_login
+                        mem.membership_level = level
                 else: #they're new!
                     newMember = WildApricotDb.from_json(contact)
                     db.add(newMember)

@@ -274,7 +274,7 @@ class AuthorizationService:
 
         payload = {
             "type": "access",
-            "time": activity.timestamp.timestamp(),
+            "time": activity.timestamp.isoformat(),
             "isKnown": "True" if access != "Denied" else "False",
             "access": access,
             "wa_access": log_access,
