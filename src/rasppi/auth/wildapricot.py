@@ -36,8 +36,6 @@ class WildApricotDb(WildApricotBase):
 
 
     def should_grant(self, now_time):
-        #if not self.last_login is not None:
-        #    return (False, self.person, "wildapricot:account_not_setup", self.expiration, self.last_updated)
         if not self.member_enabled:
             return (False, self.person, "wildapricot:not_enabled", self.expiration, self.last_updated)
         if self.is_banned:
@@ -48,6 +46,8 @@ class WildApricotDb(WildApricotBase):
             return (False, self.person, "wildapricot:not_active", self.expiration, self.last_updated)
         if self.expiration < now_time:
             return (False, self.person, "wildapricot:expired",self.expiration, self.last_updated)
+        #if self.last_login is None:
+        #    return (True, self.person, "wildapricot:needs_wa", self.expiration, self.last_updated)
         return (True, self.person, "wildapricot:granted", self.expiration, self.last_updated)
 
     @staticmethod

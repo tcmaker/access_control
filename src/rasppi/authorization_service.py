@@ -286,6 +286,7 @@ class AuthorizationService:
 
         pl = dumps(payload)
 
+        payload['member_id'] = activity.memberid
         payload['username'] = log_user
 
         try:
