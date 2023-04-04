@@ -46,8 +46,8 @@ class WildApricotDb(WildApricotBase):
             return (False, self.person, "wildapricot:not_active", self.expiration, self.last_updated)
         if self.expiration < now_time:
             return (False, self.person, "wildapricot:expired",self.expiration, self.last_updated)
-        #if self.last_login is None:
-        #    return (True, self.person, "wildapricot:needs_wa", self.expiration, self.last_updated)
+        if self.last_login is None:
+            return (True, self.person, "wildapricot:needs_wa", self.expiration, self.last_updated)
         return (True, self.person, "wildapricot:granted", self.expiration, self.last_updated)
 
     @staticmethod
