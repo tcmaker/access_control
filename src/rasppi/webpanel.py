@@ -7,6 +7,8 @@ import logging
 import subprocess
 from time import sleep
 logger = logging.getLogger("webpanel")
+from datadog_logger import get_datadog_logger
+dd_logger = get_datadog_logger("authorization_service", "authorization_service")
 from flask import Flask, render_template, jsonify, request, redirect, g, stream_with_context, Response
 from flask_httpauth import HTTPDigestAuth
 from sqlalchemy.orm import Session
@@ -317,6 +319,7 @@ def unlock():
         board = request.form['board']
         relay = int(request.form['index'])
         duration = int(float(request.form['duration']))
+        dd_logger.info(f"Manual unlock of door for {duration} seconds triggered.")
         q: Queue = webpanel.config['squeue']
         q.put(("unlock",board,relay,duration,None))
         sleep(0.5)  # less than ideal
