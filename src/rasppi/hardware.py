@@ -244,7 +244,7 @@ class ReaderBoard:
                     self._commandLock.release()
                     return self._body
                 else:
-                    logger.log(logging.ERROR, "Failure to get response from board, it's down?")
+                    logger.log(logging.ERROR, f"Failure to get response from board, it's down? Command: {c}:{data}")
                     # raise RuntimeError()
                     self._commandLock.release()
             else:
