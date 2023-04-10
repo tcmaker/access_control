@@ -10,6 +10,8 @@ from pyftdi.ftdi import Ftdi
 
 logger = logging.getLogger("Hardware")
 #logger.setLevel(logging.DEBUG)
+from datadog_logger import get_datadog_logger
+dd_logger = get_datadog_logger("hardware", "hardware")
 
 
 def list_devices():
@@ -170,25 +172,28 @@ class ReaderBoard:
         logger.log(logging.DEBUG, "Done shutting down hardware interface")
 
     def lock_watch_loop(self):
-        if not self._startedEvent.wait(5000):
-            logger.fatal("Didn't start up!")
-        else:
-            while self._run:
-                now = time()
-                tos: List[LockTimeout]
-                for (r, tos) in self._unlockTimeouts.items():
-                    if any(tos):
-                        for t in tos:
-                            if now >= t.timeout:
-                                tos.remove(t)
-                                if len(tos) == 0:
-                                    # close the door
-                                    self.send_command('o', str(r))
-                                    self.relaystatus[r] = False
-                    elif self.relaystatus[r]:
-                        self.send_command('o', str(r))
-                        self.relaystatus[r] = False
-                sleep(0.25)
+        try:
+            if not self._startedEvent.wait(5000):
+                logger.fatal("Didn't start up!")
+            else:
+                while self._run:
+                    now = time()
+                    tos: List[LockTimeout]
+                    for (r, tos) in self._unlockTimeouts.items():
+                        if any(tos):
+                            for t in tos:
+                                if now >= t.timeout:
+                                    tos.remove(t)
+                                    if len(tos) == 0:
+                                        # close the door
+                                        self.send_command('o', str(r))
+                                        self.relaystatus[r] = False
+                        elif self.relaystatus[r]:
+                            self.send_command('o', str(r))
+                            self.relaystatus[r] = False
+                    sleep(0.25)
+        except:
+            dd_logger.critical("Unlock timeout loop crashed!", exc_info=True)
 
     def parse_loop(self):
         totaltime = 0
