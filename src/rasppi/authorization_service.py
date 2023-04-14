@@ -258,7 +258,7 @@ class AuthorizationService:
         if activity.result == "granted":
             access = "Always"
             log_access = "granted"
-        
+
         if activity.authorization.startswith("wildapricot"):
             reason = activity.authorization.split(":")[1]
             log_access = reason

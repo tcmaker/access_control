@@ -19,9 +19,6 @@ from models import Activity#, AccessRequirement, Credential
 from multiprocessing import Queue
 from queue import Empty
 
-from auth.wildapricot import WildApricotAuth
-from auth.tcmaker_membership import TcmakerMembership
-
 webpanel = Flask(__name__)
 webpanel.config['SECRET_KEY'] = Config.WebpanelSecretKey
 
@@ -383,81 +380,3 @@ def log():
 
     return render_template('log.html',logsize=len(rl),logcontents=map(collapse_group,grouped),ctx="log")
 
-
-@webpanel.route("/compare")
-def compare_sources():
-    wa = WildApricotAuth()
-    wa_schema_name = wa.get_configuration_schema()[0]
-    wa.read_configuration(Config.RawConfig["auth"][wa_schema_name])
-    wa_fobs = list(wa.list_wa_accounts())
-    tcm = TcmakerMembership()
-    tcm_schema_name = tcm.get_configuration_schema()[0]
-    tcm.read_configuration(Config.RawConfig["auth"][tcm_schema_name])
-    tcm_fobs = list(tcm.list_keyfobs(tcm.Url))
-    g.dbsession = Config.ScopedSession()
-
-    all_fobs = set([f['fob'] for f in wa_fobs] + ["f:" + f['code'] for f in tcm_fobs])
-    # find_dupes
-    wa_dupes = []
-    tcm_dupes = []
-    for f in all_fobs:
-        dupes = [m for m in wa_fobs if m['fob'] == f]
-        if len(dupes) > 1:
-            [wa_dupes.append(d) for d in dupes]
-
-        ff = f.replace("f:","")
-        dupes = [m for m in tcm_fobs if m['code'] == ff]
-        if len(dupes) > 1:
-            [tcm_dupes.append(d) for d in dupes]
-
-
-    # Groups
-    # Match/Not Match
-    # Missing from WA
-    # Missing from TCM
-    missing_wa = []
-    missing_tcm = []
-    pairs = 0
-    discrepancies = []
-    now= datetime.now()
-    for f in all_fobs:
-        ff = int(f.replace("f:", ""))
-        activity_ff = f"fob:{ff}"
-        wa = [w for w in wa_fobs if int(w['fob'].replace("f:", "")) == ff]
-        tc = [w for w in tcm_fobs if int(w['code']) == ff]
-
-        if len(wa) == 0:
-            for t in tc:
-                scan = g.dbsession.query(Activity).filter(Activity.credentialref == activity_ff).order_by(Activity.timestamp.desc()).limit(1)
-                t['last_scan'] = scan.first().timestamp if scan.count() > 0 else None
-                missing_wa.append(t)
-        elif len(tc) == 0:
-            [missing_tcm.append(w) for w in wa]
-        else:
-            for w in wa:
-                for t in tc:
-                    pairs += 1
-                    try:
-                        tc_exp = datetime.fromisoformat(t['membership_valid_through']).date()
-                    except:
-                        tc_exp = datetime.min.date()
-                    try:
-                        wa_exp = datetime.fromisoformat(w['renewal_due']).date()
-                    except:
-                        wa_exp = datetime.min.date()
-
-                    wa_enabled = w['enabled'] and w['status'] == 'Active' and wa_exp >= now.date()
-                    tc_enabled = t['is_membership_valid'] and t['is_active'] and tc_exp >= now.date()
-                    t['person_id'] = t['person'].split("/")[-2]
-                    t['ee'] = tc_enabled
-                    w['ee'] = wa_enabled
-                    t['rd'] = tc_exp
-                    w['rd'] = wa_exp
-                    if wa_enabled != tc_enabled:
-                        scan = g.dbsession.query(Activity).filter(Activity.credentialref==activity_ff).order_by(Activity.timestamp.desc()).limit(1)
-                        discrepancies.append({'fob':f, "wa": w, "tc": t, 'last_scan': scan.first().timestamp if scan.count() > 0 else None})
-
-    missing_wa.sort(key=itemgetter('person'))
-    discrepancies.sort(key= lambda a: a['wa']['person'])
-
-    return render_template("comparison.html",missing_wa=[ww for ww in missing_wa if ww['is_active'] and ww['last_scan']], missing_tcm=missing_tcm, discrepancies=discrepancies, dupes_wa=wa_dupes,dupes_tc=tcm_dupes, pairs_length=pairs)
