@@ -258,19 +258,19 @@ class AuthorizationService:
         if activity.result == "granted":
             access = "Always"
             log_access = "granted"
-        else:
-            if activity.authorization.startswith("wildapricot"):
-                reason = activity.authorization.split(":")[1]
-                log_access = reason
-                if reason == "expired":
-                    access = "Expired"
-                elif reason == "not_enabled" or reason == "not_active":
-                    access = "Disabled"
-            if activity.authorization.startswith("tcmembership"):
-                reason = activity.authorization.split(":")[1]
-                log_access = reason
-                if reason == "expired":
-                    access = "Expired"
+        
+        if activity.authorization.startswith("wildapricot"):
+            reason = activity.authorization.split(":")[1]
+            log_access = reason
+            if reason == "expired":
+                access = "Expired"
+            elif reason == "not_enabled" or reason == "not_active":
+                access = "Disabled"
+        if activity.authorization.startswith("tcmembership"):
+            reason = activity.authorization.split(":")[1]
+            log_access = reason
+            if reason == "expired":
+                access = "Expired"
 
         payload = {
             "type": "access",
