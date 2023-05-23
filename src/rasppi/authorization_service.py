@@ -79,6 +79,7 @@ class AuthorizationService:
                         new_reader = ReaderBoard(f)
                         new_reader.packetCallback = self.on_scan
                         self.boards[f] = new_reader
+                        new_reader.loop_crashed_callback = self.restart
                         all_boards.append(f)
                 except Exception as e:
                     logger.fatal(f"Unable to startup hardware {f}: {e}")
@@ -146,6 +147,9 @@ class AuthorizationService:
                         api.on_close()
                     self.authModules = self.load_authorizations()
                     self._outqueue.put("OK")
+
+    def restart(self):
+        self._inqueue.put(('reload',))
 
     def lock(self, board, relay, credential):
         self._inqueue.put(('lock', board, relay, credential))

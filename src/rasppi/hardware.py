@@ -80,6 +80,7 @@ class ReaderBoard:
         # self.input = queue.Queue(20)
         self.packetCallback = None
         self.errorCallback = None
+        self.loop_crashed_callback = None
 
         self._commandLock = Lock()
         self._packetReadEvent = Event()
@@ -194,6 +195,8 @@ class ReaderBoard:
                     sleep(0.25)
         except:
             dd_logger.critical("Unlock timeout loop crashed!", exc_info=True)
+            if self.loop_crashed_callback:
+                self.loop_crashed_callback()
 
     def parse_loop(self):
         totaltime = 0
