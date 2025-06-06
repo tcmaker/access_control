@@ -132,10 +132,31 @@ class WildApricotAuth(AuthPlugin):
             self.refresh_lock.release()
             self.refresh_done_event.set()
 
+    # def getFieldValue(self, js, fv, default=None):
+        # match = [a['Value'] for a in js['FieldValues'] if a['FieldName'] == fv]
+        # if match:
+            # return match[0]
+        # return default
+
     def getFieldValue(self, js, fv, default=None):
-        match = [a['Value'] for a in js['FieldValues'] if a['FieldName'] == fv]
-        if match:
-            return match[0]
+        """
+        Retrieves a value from a list of field-value pairs.
+
+        If the found value is a dictionary, it returns the value of its 'Label' key.
+        """
+        for item in js.get('FieldValues', []):
+            if item.get('FieldName') == fv:
+                value = item.get('Value')
+                
+                if isinstance(value, dict):
+                    # If the value is a dictionary, return its 'Label'.
+                    # .get() is used to safely return the default if 'Label' is missing.
+                    return value.get('Label', default)
+                
+                # Otherwise, return the primitive value.
+                return value
+                
+        # If no matching 'FieldName' is found after checking all items, return default.
         return default
 
     def get_access_token(self):
