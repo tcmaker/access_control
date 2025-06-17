@@ -245,7 +245,11 @@ class ReaderBoard:
         message = f"{c}{data}\r"  # we won't add a \n, serial comms don't do that normally
         self._packetReadEvent.clear()
         d = message.encode("utf-8")
-        if self._commandLock.acquire(timeout=1.0):
+        t = time()
+        if self._commandLock.acquire(timeout=3.5):
+            et = time() - t
+            if et > 1.0:
+                logger.log(logging.INFO, f"Would have failed previously, took longer than a second but recovered: {et}")
             if self._run:
                 self._ftdi.write_data(d)
                 if self._packetReadEvent.wait(3.0):

@@ -170,24 +170,32 @@ class WildApricotAuth(AuthPlugin):
 
     def list_wa_accounts(self):
         access_token = self.get_access_token()
-
-        responseContacts = requests.get('https://api.wildapricot.org/v2.2/accounts/409807/contacts',
+        skip = 0
+        while True:
+            responseContacts = requests.get('https://api.wildapricot.org/v2.2/accounts/409807/contacts',
                                         headers={'Accept': 'application/json',
                                                  'Authorization': f'Bearer {access_token}',
                                                  },
                                         params={'$async': 'false',
                                                 '$filter': "'Key Fob' ne 'NULL' AND 'Key Fob' ne 0 AND 'IsArchived' eq False",
+                                                '$top': 100,
+                                                '$skip': skip,
                                                 '$select': "'Key Fob','Key Fob is','MembershipEnabled','Renewal due','Status','is_banned', 'LastLoginDate'"
                                                 }
                                         )
-        # Raise an exception on HTTP error
-        responseContacts.raise_for_status()
-        cc = responseContacts.json()
+            # Raise an exception on HTTP error
+            responseContacts.raise_for_status()
+            cc = responseContacts.json()
 
-        for c in cc['Contacts']:
-            contact = self.wa_to_contact(c)
-            if contact:
-                yield contact
+            for c in cc['Contacts']:
+                contact = self.wa_to_contact(c)
+                if contact:
+                    yield contact
+            num_returned = len(cc['Contacts'])
+            if num_returned != 100:
+                return
+            else:
+                skip += num_returned
 
     def get_single_contact(self, account_id, account_fob):
         access_token = self.get_access_token()
