@@ -222,7 +222,9 @@ class WildApricotAuth(AuthPlugin):
                 enabled = bool(json["MembershipEnabled"])
             else:
                 enabled = False
-            banned = self.getFieldValue(json, "is_banned", False)
+
+            raw_banned_value = self.getFieldValue(json, "is_banned", False)
+            banned = str(raw_banned_value).lower() == 'true'
 
             fob_value = f"f:{int(fob)}"
         except:
